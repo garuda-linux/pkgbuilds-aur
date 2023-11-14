@@ -4,7 +4,11 @@ for dep in curl git jq; do
 	command -v "$dep" &>/dev/null || echo "$dep is not installed!"
 done
 
-read-variables() {
+function setup-workdir() {
+	curl "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$_COUNTER]}" -o PKGBUILD
+}
+
+function read-variables() {
 	if [[ "$1" == "old" ]]; then
 		# shellcheck disable=1091
 		source PKGBUILD
@@ -30,7 +34,7 @@ read-variables() {
 		_OLDURL="$url"
 		_OLDVER="$pkgver"
 	elif [[ "$1" == "new" ]]; then
-		_NEWPKG=$(curl "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$i]}")
+
 		# shellcheck disable=SC1090
 		source <(echo "$_NEWPKG")
 		_NEWARCH="$arch"
@@ -56,11 +60,33 @@ read-variables() {
 	fi
 }
 
-classify-update() {
+function read-functions() {
+	# We basically compare the set of available functions before and after sourcing
+	# the PKGBUILD here, if they differ, the PKGBUILD needs to be reviewed
+	local _OLDFUNCS _NEWFUNCS
+
+	# shellcheck disable=1091
+	source PKGBUILD
+	_OLDFUNCS=$(declare -f)
+
+	_NEWPKG=$(curl "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$_COUNTER]}")
+	# shellcheck disable=SC1090
+	source <(echo "$_NEWPKG")
+	_NEWFUNCS=$(declare -f)
+
+	if [[ "${_OLDFUNCS[*]}" != "${_NEWFUNCS[*]}" ]]; then
+		echo "Functions have changed, please review the PKGBUILD!"
+		_NEEDS_REVIEW=1
+	else
+		echo "Functions have not changed, continuing!"
+	fi
+}
+
+function classify-update() {
 	# Used to determine whether the update changes integral parts of the
 	# PKGBUILD, thus requiring a human review
 	# shellcheck disable=SC1090
-	_NEWPKG=$(curl "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$i]}")
+	_NEWPKG=$(curl "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$_COUNTER]}")
 
 	[[ "$_OLDARCH" != "$_NEWARCH" ]] && _DIFFS+=("arch")
 	[[ "$_OLDBACKUP" != "$_NEWBACKUP" ]] && _DIFFS+=("backup")
@@ -85,10 +111,10 @@ classify-update() {
 
 	echo "The following changes were detected: ${_DIFFS[*]}"
 
-	for i in sha1sums sha256sums sha512sums md5sums; do
+	for algorithm in sha1sums sha256sums sha512sums md5sums; do
 		# shellcheck disable=2076
-		if [[ "${_DIFFS[*]}" =~ "$i" ]]; then
-			_CURRENT_ALG="$i"
+		if [[ "${_DIFFS[*]}" =~ "$algorithm" ]]; then
+			_CURRENT_ALG="$algorithm"
 		fi
 	done
 
@@ -119,24 +145,69 @@ classify-update() {
 
 }
 
-update_pkgbuild() {
-	git clone "https://aur.archlinux.org/${_PKGNAME[$i]}.git" "$_TMPDIR/source"
+function update_pkgbuild() {
+	git clone "https://aur.archlinux.org/${_PKGNAME[$_COUNTER]}.git" "$_TMPDIR/source"
 
+	_NEW_BRANCH="update-${_PKGNAME[$_COUNTER]}"
+
+	# Switch to a new branch and put new files in place
+	git switch -c "$_NEW_BRANCH"
 	cp -v $_TMPDIR/source/* "$_CURRDIR"
+
+	# Commit and push the changes to our new branch
+	git add .
+	git commit -m "Update ${_PKGNAME[$_COUNTER]} to ${_NEWVER}"
+	git push -f origin "$_NEW_BRANCH" # we force push here, because we want to overwrite in case of updates
+}
+
+function create_mr() {
+	# Taken from https://about.gitlab.com/2017/09/05/how-to-automatically-create-a-new-mr-on-gitlab-with-gitlab-ci/
+	TARGET_BRANCH=main
+
+	# The description of our new MR, we want to remove the branch after the MR has
+	# been closed
+	BODY="{
+	\"project_id\": ${CI_PROJECT_ID},
+	\"source_branch\": \"${_NEW_BRANCH}\",
+	\"target_branch\": \"${TARGET_BRANCH}\",
+	\"remove_source_branch\": false,
+	\"force_remove_source_branch\": false,
+	\"allow_collaboration\": true,
+	\"subscribed\" : true,
+	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}\"
+	}"
+
+	# Require a list of all the merge request and take a look if there is already
+	# one with the same source branch
+	LISTMR=$(curl --silent "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests?state=opened" \
+		--header "PRIVATE-TOKEN:${ACCESS_TOKEN}")
+	COUNTBRANCHES=$(echo "${LISTMR}" | grep -o "\"source_branch\":\"${CI_COMMIT_REF_NAME}\"" | wc -l)
+
+	# No MR found, let's create a new one
+	if [ "${COUNTBRANCHES}" -eq "0" ]; then
+		curl -X POST "${HOST}${CI_PROJECT_ID}/merge_requests" \
+			--header "PRIVATE-TOKEN:${ACCESS_TOKEN}" \
+			--header "Content-Type: application/json" \
+			--data "${BODY}"
+
+		echo "Opened a new merge request: chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}"
+		exit
+	fi
+	echo "No new merge request opened due to an already existing MR."
 }
 
 readarray -t _SOURCES < <(awk -F ' ' '{ print $1 }' ./SOURCES)
 readarray -t _PKGNAME < <(awk -F ' ' '{ print $2 }' ./SOURCES)
 
-i=0
-for package in "${_SOURCES[@]}"; do
+_COUNTER=0
+for package in "${_PKGNAME[@]}"; do
 	# Get the latest tag from the GitLab API
-	_LATEST=$(curl -s "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=${_PKGNAME[$i]}" | jq '.results.[0].Version')
+	_LATEST=$(curl -s "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=${_PKGNAME[$_COUNTER]}" | jq '.results.[0].Version')
 
-	cd "${_PKGNAME[$i]}" || echo "Failed to cd into ${_PKGNAME[$i]}!"
+	cd "${_PKGNAME[$_COUNTER]}" || echo "Failed to cd into ${_PKGNAME[$_COUNTER]}!"
 
 	# shellcheck disable=SC1091
-	source PKGBUILD || echo "Failed to source PKGBUILD for ${_PKGNAME[$i]}!"
+	source PKGBUILD || echo "Failed to source PKGBUILD for ${_PKGNAME[$_COUNTER]}!"
 
 	if [[ "$pkgver" != "$_LATEST" ]]; then
 		# Create a temporary directory to work with
@@ -146,13 +217,14 @@ for package in "${_SOURCES[@]}"; do
 		read-variables "old"
 		read-variables "new"
 		classify-update
-		[[ $_NEEDS_REVIEW != 1 ]] && update_pkgbuild
+		read-functions
+		[[ $_NEEDS_REVIEW != 1 ]] && update_pkgbuild && create_mr
 	else
-		echo "${_PKGNAME[$i]} is up to date"
+		echo "${_PKGNAME[$_COUNTER]} is up to date"
 	fi
 
 	cd .. || echo "Failed to change back to the previous directory!"
-	i=$((i + 1))
+	((_COUNTER++))
 
 	# Try to avoid rate limiting
 	sleep 5
