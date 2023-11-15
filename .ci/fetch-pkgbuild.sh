@@ -176,11 +176,14 @@ function create_mr() {
 	\"project_id\": ${CI_PROJECT_ID},
 	\"source_branch\": \"${_TARGET_BRANCH}\",
 	\"target_branch\": \"main\",
-	\"remove_source_branch\": false,
+	\"remove_source_branch\": true,
 	\"force_remove_source_branch\": false,
 	\"allow_collaboration\": true,
 	\"subscribed\" : true,
-	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}\"
+	\"approvals_before_merge\" 1,
+	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}\",
+	\"description\": \"The recent update of this package requires humnan reviewal! 🧐\",
+	\"labels\": \"ci,human-review,update\"
 	}"
 
 	# Require a list of all the merge request and take a look if there is already
