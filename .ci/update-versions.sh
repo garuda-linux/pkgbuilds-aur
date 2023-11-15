@@ -15,7 +15,7 @@ if [ "$_PREV_VERSIONS" != "$_NEW_VERSIONS" ]; then
 	# have pushed an updated version after the git repo state of this pipeline
 	git pull
 	git add VERSIONS
-	git commit -m "chore(VERSIONS): update with new PKGBUILD versions [skip ci]"
+	git commit -m "chore(versions): update with new PKGBUILD versions [skip ci]"
 	git push "$REPO_URL" HEAD:main # provided via GitLab CI
 else
 	echo "No changes in versions 🎉"

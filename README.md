@@ -1,5 +1,6 @@
 # Not so Chaotic-AUR
 
+[![pipeline status](https://gitlab.com/garuda-linux/pkgsbuilds-aur/badges/main/pipeline.svg)](https://gitlab.com/garuda-linux/pkgsbuilds-aur/-/commits/main)
 [![Commitizen friendly](https://img.shields.io/badge/commitizen-friendly-brightgreen.svg)](http://commitizen.github.io/cz-cli/)
 
 WIP

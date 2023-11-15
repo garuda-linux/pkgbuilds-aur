@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-for dep in curl git jq; do
+for dep in curl git jq shfmt; do
 	command -v "$dep" &>/dev/null || echo "$dep is not installed!"
 done
 
@@ -12,7 +12,6 @@ function read-variables() {
 	if [[ "$1" == "old" ]]; then
 		# shellcheck disable=1091
 		source PKGBUILD
-
 		_OLDARCH="$arch"
 		_OLDBACKUP="$backup"
 		_OLDBUILD="$build"
@@ -34,7 +33,6 @@ function read-variables() {
 		_OLDURL="$url"
 		_OLDVER="$pkgver"
 	elif [[ "$1" == "new" ]]; then
-
 		# shellcheck disable=SC1090
 		source <(echo "$_NEWPKG")
 		_NEWARCH="$arch"
@@ -142,34 +140,42 @@ function classify-update() {
 		echo "Please review the changes and update the PKGBUILD accordingly!"
 		_NEEDS_REVIEW=1
 	fi
-
 }
 
 function update_pkgbuild() {
 	git clone "https://aur.archlinux.org/${_PKGNAME[$_COUNTER]}.git" "$_TMPDIR/source"
 
-	_NEW_BRANCH="update-${_PKGNAME[$_COUNTER]}"
+	# Switch to a new branch and put new files in place, in case non-trivial changes
+	if [[ $_NEEDS_REVIEW == 1 ]]; then
+		_TARGET_BRANCH="update-${_PKGNAME[$_COUNTER]}"
+		git switch -c "$_TARGET_BRANCH"
+	else
+		_TARGET_BRANCH=main
+	fi
 
-	# Switch to a new branch and put new files in place
-	git switch -c "$_NEW_BRANCH"
 	cp -v $_TMPDIR/source/* "$_CURRDIR"
+
+	# Format the PKGBUILD
+	shfmt -w -d PKGBUILD
 
 	# Commit and push the changes to our new branch
 	git add .
-	git commit -m "Update ${_PKGNAME[$_COUNTER]} to ${_NEWVER}"
-	git push -f origin "$_NEW_BRANCH" # we force push here, because we want to overwrite in case of updates
+	git commit -m "chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}"
+
+	# We force push here, because we want to overwrite in case of updates
+	git push "$REPO_URL" HEAD:"$_TARGET_BRANCH" -f # Env provided via GitLab CI
 }
 
 function create_mr() {
 	# Taken from https://about.gitlab.com/2017/09/05/how-to-automatically-create-a-new-mr-on-gitlab-with-gitlab-ci/
-	TARGET_BRANCH=main
+	local TARGET_BRANCH=main
 
 	# The description of our new MR, we want to remove the branch after the MR has
 	# been closed
 	BODY="{
 	\"project_id\": ${CI_PROJECT_ID},
-	\"source_branch\": \"${_NEW_BRANCH}\",
-	\"target_branch\": \"${TARGET_BRANCH}\",
+	\"source_branch\": \"${_TARGET_BRANCH}\",
+	\"target_branch\": \"main\",
 	\"remove_source_branch\": false,
 	\"force_remove_source_branch\": false,
 	\"allow_collaboration\": true,
@@ -179,21 +185,22 @@ function create_mr() {
 
 	# Require a list of all the merge request and take a look if there is already
 	# one with the same source branch
-	LISTMR=$(curl --silent "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests?state=opened" \
+	local _COUNTBRANCHES _LISTMR
+	_LISTMR=$(curl --silent "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests?state=opened" \
 		--header "PRIVATE-TOKEN:${ACCESS_TOKEN}")
-	COUNTBRANCHES=$(echo "${LISTMR}" | grep -o "\"source_branch\":\"${CI_COMMIT_REF_NAME}\"" | wc -l)
+	_COUNTBRANCHES=$(echo "${_LISTMR}" | grep -o "\"source_branch\":\"${CI_COMMIT_REF_NAME}\"" | wc -l)
 
 	# No MR found, let's create a new one
-	if [ "${COUNTBRANCHES}" -eq "0" ]; then
-		curl -X POST "${HOST}${CI_PROJECT_ID}/merge_requests" \
+	if [ "${_COUNTBRANCHES}" -eq "0" ]; then
+		curl -X POST "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests" \
 			--header "PRIVATE-TOKEN:${ACCESS_TOKEN}" \
 			--header "Content-Type: application/json" \
-			--data "${BODY}"
-
-		echo "Opened a new merge request: chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}"
-		exit
+			--data "${BODY}" &&
+			echo "Opened a new merge request: chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}" ||
+			echo "Failed to open a new merge request!"
+	else
+		echo "No new merge request opened due to an already existing MR."
 	fi
-	echo "No new merge request opened due to an already existing MR."
 }
 
 readarray -t _SOURCES < <(awk -F ' ' '{ print $1 }' ./SOURCES)
@@ -218,7 +225,8 @@ for package in "${_PKGNAME[@]}"; do
 		read-variables "new"
 		classify-update
 		read-functions
-		[[ $_NEEDS_REVIEW != 1 ]] && update_pkgbuild && create_mr
+		update_pkgbuild
+		[[ $_NEEDS_REVIEW == 1 ]] && create_mr
 	else
 		echo "${_PKGNAME[$_COUNTER]} is up to date"
 	fi
@@ -227,5 +235,5 @@ for package in "${_PKGNAME[@]}"; do
 	((_COUNTER++))
 
 	# Try to avoid rate limiting
-	sleep 5
+	sleep 1
 done
