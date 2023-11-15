@@ -65,20 +65,33 @@ update-versions:
         - "*/PKGBUILD"
       if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-deploy:
+build-package:
+  # This only runs on the default branch and when the commit message contains [deploy *]
+  # and is used to build a package using Archlinux devtools
+  stage: deploy
+  image: carlodepieri/docker-archlinux-systemd
+  script:
+    - pacman -Syu --noconfirm devtools
+    - bash .ci/build-package.sh
+  artifacts:
+    paths:
+      - "*/*.pkg.tar.zst"
+    expire_in: 1 day
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /\[deploy.*\]/ && $BUMPVER != "1"
+
+deploy-package:
   # This only runs on the default branch and when the commit message contains [deploy *]
   # and is used to deploy the package to the build server.
   stage: deploy
   image: alpine:latest
   script:
-    - '[[ -z ${DEPLOY_KEY+x} ]] && echo "No deploy key available, backing off!" && exit 1'
+    # - '[[ -z ${DEPLOY_KEY+x} ]] && echo "No deploy key available, backing off!" && exit 1'
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
     - echo "$DEPLOY_KEY" >>~/.ssh/id_ed25519
     - chmod 400 ~/.ssh/id_ed25519
     - apk add --no-cache --upgrade bash openssh
-    - bash .ci/what-to-deploy.sh
-    - TO_DEPLOY=$(cat /tmp/TO_DEPLOY)
-    - ssh -p "$BUILD_PORT" -o StrictHostKeyChecking=no "$BUILD_USER"@"$BUILD_HOST" "chaotictrigger $TO_DEPLOY"
+    - echo "Deploying $CI_PROJECT_NAME to $BUILD_HOST"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /\[deploy.*\]/ && $BUMPVER != "1"
