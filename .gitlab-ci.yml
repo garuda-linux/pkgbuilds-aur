@@ -65,14 +65,42 @@ update-versions:
         - "*/PKGBUILD"
       if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
+build-docker:
+  # Used to deploy a new base Docker image for building purposes
+  stage: deploy
+  image: docker:24-cli
+  services:
+    - name: docker:24-dind
+      alias: docker-daemon
+  before_script:
+    - docker info
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker build -t "$CI_REGISTRY_IMAGE:latest" .ci/assets
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://docker-daemon:2375/
+    DOCKER_TLS_CERTDIR: ""
+  rules:
+    - if: $UPDATE_DOCKER == "1"
+
 build-package:
   # This only runs on the default branch and when the commit message contains [deploy *]
-  # and is used to build a package using Archlinux devtools
+  # https://docs.gitlab.com/ee/ci/docker/using_docker_build.html
   stage: deploy
-  image: carlodepieri/docker-archlinux-systemd
+  image: docker:24-cli
+  services:
+    - name: docker:24-dind
+      alias: docker-daemon
+  before_script:
+    - docker info
   script:
-    - pacman -Syu --noconfirm devtools
     - bash .ci/build-package.sh
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://docker-daemon:2375/
+    DOCKER_TLS_CERTDIR: ""
   artifacts:
     paths:
       - "*/*.pkg.tar.zst"
