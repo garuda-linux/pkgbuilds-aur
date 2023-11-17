@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 
 function setup-buildenv() {
-    [[ -z $PACKAGER ]] && PACKAGER='Garuda Builder <team@garudalinux.org>'
+    [[ -z $PACKAGER ]] && PACKAGER="Garuda Builder <team@garudalinux.org>"
     [[ -z $MAKEFLAGS ]] && MAKEFLAGS="-j$(nproc)"
     [[ -z $PACKAGE ]] && PACKAGE="all"
 
-    printf "\nPACKAGER=%s\nMAKEFLAGS=%s" "$PACKAGER" "$MAKEFLAGS" >>/etc/makepkg.conf
+    echo "PACKAGER=\"$PACKAGER\"" >>/etc/makepkg.conf
+    echo "MAKEFLAGS=$MAKEFLAGS" >>/etc/makepkg.conf
 
     # shellcheck disable=1091
     source PKGBUILD
