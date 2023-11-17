@@ -128,17 +128,17 @@ deploy-package:
   image: alpine:latest
   script:
     - '[[ -z ${DEPLOY_KEY+x} ]] && echo "No deploy key available, backing off!" && exit 1'
+    - "[[ -z ${TO_DEPLOY+x} ]] && TO_DEPLOY=$(cat deploy-pkg)"
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
     - echo "$DEPLOY_KEY" >~/.ssh/id_ed25519
     - chmod 400 ~/.ssh/id_ed25519
     - apk add --no-cache --upgrade openssh
-    - mapfile -t TO_DEPLOY < deploy-pkg
     - |
       ssh -i ~/.ssh/id_ed25519 -p$BUILD_PORT -o StrictHostKeyChecking=no $BUILD_USER@$BUILD_HOST \
-          gpg --detach-sign --use-agent --no-armor "$REPO_DIR"/"$PKG".tar.zst
+          gpg --detach-sign --use-agent --no-armor --yes "$REPO_PATH/$TO_DEPLOY"*".pkg.tar.zst"
     - |
       ssh -i ~/.ssh/id_ed25519 -p$BUILD_PORT -o StrictHostKeyChecking=no $BUILD_USER@$BUILD_HOST \
-          repo-add -v $REPO_PATH/$REPO_NAME.db.tar.zst $REPO_PATH/TO_DEPLOY.tar.zst
+          repo-add -v "$REPO_PATH/$REPO_NAME.db.tar.zst" "$REPO_PATH/$TO_DEPLOY"*".pkg.tar.zst"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /\[deploy.*\]/ && $BUMPVER != "1" && $UPDATE_DOCKER != "1"
