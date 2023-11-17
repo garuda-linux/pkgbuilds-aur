@@ -1,0 +1,13 @@
+# Maintainer: dr460nf1r3 <dr460nf1r3 at garudalinux dot org>
+
+pkgname=dummy
+pkgver=1
+pkgrel=1
+arch=('any')
+url="https://testing.dum,my"
+license=('GPL')
+pkgdesc="Dummy package for testing purposes"
+
+package() {
+	depends=("pacman")
+}
