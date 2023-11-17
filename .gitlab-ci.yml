@@ -36,7 +36,7 @@ check-pr-commitizen:
     - cz check --message "$CI_COMMIT_MESSAGE" >/tmp/cz_check || true # why does it return 1 if its actually 0?
     - grep "successful" /tmp/cz_check # ugly hack to workaround the above issue
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $UPDATE_DOCKER != "1"
 
 fetch-pkgbuilds:
   # This basically updates the version in the PKGBUILD and commits it
@@ -63,7 +63,7 @@ update-versions:
   rules:
     - changes:
         - "*/PKGBUILD"
-      if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $UPDATE_DOCKER != "1"
 
 build-docker:
   # Used to deploy a new base Docker image for building purposes
@@ -108,7 +108,7 @@ build-package:
       - "*/*.pkg.tar.zst"
     expire_in: 1 day
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /\[deploy.*\]/ && $BUMPVER != "1"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /\[deploy.*\]/ && $BUMPVER != "1" && $UPDATE_DOCKER != "1"
 
 deploy-package:
   # This only runs on the default branch and when the commit message contains [deploy *]
@@ -124,4 +124,4 @@ deploy-package:
     - apk add --no-cache --upgrade bash openssh
     - echo "Deploying $CI_PROJECT_NAME to $BUILD_HOST"
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /\[deploy.*\]/ && $BUMPVER != "1"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /\[deploy.*\]/ && $BUMPVER != "1" && $UPDATE_DOCKER != "1"
