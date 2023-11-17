@@ -67,6 +67,7 @@ update-versions:
 
 build-docker:
   # Used to deploy a new base Docker image for building purposes
+  # this one runs once per day via pipeline schedules
   stage: deploy
   image: docker:24-cli
   services:
@@ -97,6 +98,7 @@ build-package:
   before_script:
     - docker info
   script:
+    - apk add --no-cache --upgrade bash
     - bash .ci/build-package.sh
   tags: ["dind"]
   variables:
