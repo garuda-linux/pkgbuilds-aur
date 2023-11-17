@@ -16,6 +16,7 @@ function parse-commit() {
         for package in "${_PACKAGES[@]}"; do
             [[ "$CI_COMMIT_MESSAGE" == *"[deploy $package]"* ]] &&
                 _PKG="$package" &&
+                echo "$_PKG" > deploy-pkg &&
                 echo "Requested package build for $package."
             break
         done

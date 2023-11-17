@@ -1,5 +1,5 @@
 ---
-stages: [checks, update-pkgbuilds, bump-version, build, upload, deploy]
+stages: [checks, update-pkgbuilds, bump-version, build, deploy]
 
 variables:
   BUILD_HOST: builds.garudalinux.org
@@ -8,6 +8,7 @@ variables:
   GIT_AUTHOR_EMAIL: ci@garudalinux.org
   GIT_AUTHOR_NAME: GitLab CI
   GIT_STRATEGY: clone
+  REPO_NAME: garuda
   REPO_PATH: /home/package-deployer/repo/x86_64
   REPO_URL: $CI_SERVER_PROTOCOL://gitlab-ci-token:$ACCESS_TOKEN@$CI_SERVER_HOST/$CI_PROJECT_PATH.git
 
@@ -99,8 +100,15 @@ build-package:
   before_script:
     - docker info
   script:
-    - apk add --no-cache --upgrade bash
+    - '[[ -z ${DEPLOY_KEY+x} ]] && echo "No deploy key available, backing off!" && exit 1'
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$DEPLOY_KEY" >~/.ssh/id_ed25519
+    - chmod 400 ~/.ssh/id_ed25519
+    - apk add --no-cache --upgrade bash openssh rsync
     - bash .ci/build-package.sh
+    - echo "Deploying packages to $BUILD_HOST"..
+    - rsync -rav -e "ssh -i ~/.ssh/id_ed25519 -p$BUILD_PORT -o StrictHostKeyChecking=no" */*.tar.zst $BUILD_USER@$BUILD_HOST:$REPO_PATH
   tags: ["dind"]
   variables:
     DOCKER_DRIVER: overlay2
@@ -108,25 +116,29 @@ build-package:
     DOCKER_TLS_CERTDIR: ""
   artifacts:
     paths:
-      - "*/*.pkg.tar.zst"
+      - "deploy-pkg"
     expire_in: 1 day
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /\[deploy.*\]/ && $BUMPVER != "1" && $UPDATE_DOCKER != "1"
 
-upload-package:
+deploy-package:
   # This only runs on the default branch and when the commit message contains [deploy *]
   # and is used to deploy the package to the build server.
-  stage: upload
+  stage: deploy
   image: alpine:latest
   script:
     - '[[ -z ${DEPLOY_KEY+x} ]] && echo "No deploy key available, backing off!" && exit 1'
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    - echo "$DEPLOY_KEY" >>~/.ssh/id_ed25519
+    - echo "$DEPLOY_KEY" >~/.ssh/id_ed25519
     - chmod 400 ~/.ssh/id_ed25519
-    - apk add --no-cache --upgrade bash openssh rsync
-    - echo "Deploying $CI_PROJECT_NAME to $BUILD_HOST"
-    - rsync -rav -e "ssh -i ~/.ssh/id_ed25519 -p$BUILD_PORT -o StrictHostKeyChecking=no" */*.tar.zst $BUILD_USER@$BUILD_HOST:$REPO_PATH
-  dependencies: [build-package]
+    - apk add --no-cache --upgrade openssh
+    - mapfile -t TO_DEPLOY < deploy-pkg
+    - |
+      ssh -i ~/.ssh/id_ed25519 -p$BUILD_PORT -o StrictHostKeyChecking=no $BUILD_USER@$BUILD_HOST \
+          gpg --detach-sign --use-agent --no-armor "$REPO_DIR"/"$PKG".tar.zst
+    - |
+      ssh -i ~/.ssh/id_ed25519 -p$BUILD_PORT -o StrictHostKeyChecking=no $BUILD_USER@$BUILD_HOST \
+          repo-add -v $REPO_PATH/$REPO_NAME.db.tar.zst $REPO_PATH/TO_DEPLOY.tar.zst
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /\[deploy.*\]/ && $BUMPVER != "1" && $UPDATE_DOCKER != "1"
