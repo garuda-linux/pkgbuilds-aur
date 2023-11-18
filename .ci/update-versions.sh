@@ -4,7 +4,7 @@
 _PREV_VERSIONS=$(cat VERSIONS)
 _NEW_VERSIONS=$(for i in */PKGBUILD; do
 	source "$i"
-	printf "%s %s\n" "$pkgname" "$pkgver"
+	printf "%s %s %s\n" "$pkgname" "$pkgver" "$pkgrel"
 done)
 
 if [ "$_PREV_VERSIONS" != "$_NEW_VERSIONS" ]; then
