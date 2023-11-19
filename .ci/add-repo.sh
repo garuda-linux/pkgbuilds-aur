@@ -1,23 +1,41 @@
 #!/usr/bin/env bash
 set -e
 
-# Set reasonable defaults for our environment variables
-ARCH=${ARCH:-"x86_64"}
-WEB_ROOT=${WEB_ROOT:-"/srv/http/repo-gitlab"}
-REPO_NAME=${REPO_NAME:-"garuda"}
-REPO_DIR=${REPO_DIR:-"$WEB_ROOT/$REPO_NAME/$ARCH"}
-
+# shellcheck disable=SC2120
 function check-env() {
-  # Abort if any of these aren't set
-  [[ -z "$PKG" ]] && echo "PKG is not set!" && exit 1
+  if [ "$#" -eq 0 ]; then
+    # Set reasonable defaults for our environment variables in case no
+    # arguments were supplied
+    ARCH=${ARCH:-"x86_64"}
+    PACKAGES=${PACKAGES:-}
+    REPO_NAME=${REPO_NAME:-"garuda"}
+    WEB_ROOT=${WEB_ROOT:-"/srv/http/repo"}
+    REPO_DIR=${REPO_DIR:-"$WEB_ROOT/$REPO_NAME/$ARCH"}
+  elif [ "$#" -gt 3 ]; then
+    # Use arguments in case no environment variables were supplied
+    # add-repo.sh [ARCH] [LANDING_ZONE] [WEB_ROOT] [REPO_NAME] [PACKAGES1] [PACKAGES2] [...]
+    ARCH="$1"
+    LANDING_ZONE="$2"
+    REPO_NAME="$4"
+    WEB_ROOT="$3"
+    REPO_DIR="$WEB_ROOT/$REPO_NAME/$ARCH"
+
+    # Add all arguments after the first 4 to the PACKAGES array
+    for ((i = 5; i <= $#; i++)); do
+      PACKAGES+=("${!i}")
+    done
+  else
+    echo "Invalid amount of arguments supplied, aborting execution!"
+  fi
 
   return 0
 }
+
 function clean-duplicates() {
   set -euo pipefail
 
-  if [[ ! -d "$REPO_DIR" ]]; then
-    echo 'Deploying directory not found.'
+  if [[ ! -d "${REPO_DIR}" ]]; then
+    echo 'Deploying directory not found!'
     return 0
   fi
 
@@ -74,7 +92,7 @@ function clean-archive() {
   (clean-duplicates -q) || true
 
   if [[ ! -d "${REPO_DIR}/../archive" ]]; then
-    echo 'Non-exiting archive directory'
+    echo 'Non-exiting archive directory!'
     return 0
   fi
 
@@ -129,21 +147,27 @@ function clean-sigs() {
 
 function sign() {
   # Sign our package using gpg
-  gpg --detach-sign \
-    --use-agent \
-    --no-armor \
-    --yes \
-    "$PKG_DIR"/"$PKG"*.pkg.tar.zst
+  if [[ ! -f "$LANDING_ZONE/$1" ]]; then
+    echo "Package not found: $1"
+    return 1
+  else
+    gpg --detach-sign \
+      --use-agent \
+      --no-armor \
+      --yes \
+      "$LANDING_ZONE/$1"
+  fi
 
   return 0
 }
 
 function add-repo() {
   # Put files from our temporary upload directory into the repo directory
-  mv "$PKG_DIR/$PKG"*.pkg.tar.{zst,zst.sig} "$REPO_DIR"
+  mv "$LANDING_ZONE/$1" "$REPO_DIR" || echo "Failed to move package: $1"
+  mv "$LANDING_ZONE/$1.sig" "$REPO_DIR" || echo "Failed to move signature: $1.sig"
 
   # Add the package to the repo database
-  repo-add -v "$REPO_DIR"/"$REPO_NAME".db.tar.zst "$REPO_DIR"/"$PKG"*.pkg.tar.zst
+  repo-add "$REPO_DIR/$REPO_NAME.db.tar.zst" "$REPO_DIR/$1" || echo "Failed to add package to database: $1"
 
   return 0
 }
@@ -170,7 +194,7 @@ function db-pkglist() {
 
     echo "Database's package list dumped"
   else
-    echo 'Failed to dump package list'
+    echo "Failed to dump package list"
   fi
   popd # REPO_DIR
 
@@ -179,12 +203,13 @@ function db-pkglist() {
 
 function deploy-notify() {
   # Notify our deployment service that we've deployed a new package
-  telegram-send --format markdown "$@"
+  # telegram-send --pre markdown "$@" - replace echo once we enter production
+  echo "$@"
 
   return 0
 }
 
-function clean-post-deploy() {
+function post-deploy() {
   set -euo pipefail
 
   (clean-archive -q) || true
@@ -194,7 +219,9 @@ function clean-post-deploy() {
 }
 
 check-env
-sign
-add-repo
+for pkg in "${PACKAGES[@]}"; do
+  sign "$pkg"
+  add-repo "$pkg"
+done
 db-pkglist
-clean-post-deploy
+post-deploy
