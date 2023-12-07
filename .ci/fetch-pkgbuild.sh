@@ -219,7 +219,7 @@ for package in "${_PKGNAME[@]}"; do
 	# shellcheck disable=SC1091
 	source PKGBUILD || echo "Failed to source PKGBUILD for ${_PKGNAME[$_COUNTER]}!"
 
-	if [[ "$pkgver" != "$_LATEST" ]]; then
+	if [[ "$pkgver"-"$pkgrel" != "$_LATEST" ]]; then
 		# Create a temporary directory to work with
 		_TMPDIR=/tmp #$(mktemp -d)
 		_CURRDIR=$(pwd)
