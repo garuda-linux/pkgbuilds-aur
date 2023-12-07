@@ -80,6 +80,14 @@ function read-functions() {
 	fi
 }
 
+function exists-branch() {
+	if git ls-remote --exit-code --heads origin "update-${_PKGNAME[$_COUNTER]}" &>/dev/null; then
+		_BRANCH_EXISTS=1
+	else
+		_BRANCH_EXISTS=0
+	fi
+}
+
 function classify-update() {
 	# Used to determine whether the update changes integral parts of the
 	# PKGBUILD, thus requiring a human review
@@ -148,27 +156,44 @@ function update_pkgbuild() {
 	# Switch to a new branch and put new files in place, in case non-trivial changes
 	if [[ $_NEEDS_REVIEW == 1 ]]; then
 		_TARGET_BRANCH="update-${_PKGNAME[$_COUNTER]}"
-		git switch -c "$_TARGET_BRANCH"
 	else
 		_TARGET_BRANCH=main
 	fi
 
-	cp -v $_TMPDIR/source/* "$_CURRDIR"
+	cp -v "$_TMPDIR"/source/* "$_CURRDIR"
 
 	# Format the PKGBUILD
 	shfmt -w -d PKGBUILD
 
-	# Commit and push the changes to our new branch
-	git add .
-	git commit -m "chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}"
+	# Only push if there are changes
+	if ! git diff --exit-code --quiet; then
+		git add .
+		# Commit and push the changes to our new branch
+		git commit -m "chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}"
 
-	# We force push here, because we want to overwrite in case of updates
-	git push "$REPO_URL" HEAD:"$_TARGET_BRANCH" -f # Env provided via GitLab CI
+		# We force push here, because we want to overwrite in case of updates
+		git push "$REPO_URL" HEAD:"$_TARGET_BRANCH" -f # Env provided via GitLab CI
+	else
+		echo "No changes detected, skipping!"
+	fi
 }
 
 function create_mr() {
 	# Taken from https://about.gitlab.com/2017/09/05/how-to-automatically-create-a-new-mr-on-gitlab-with-gitlab-ci/
 	local TARGET_BRANCH=main
+
+	# Require a list of all the merge request and take a look if there is already
+	# one with the same source branch
+	local _COUNTBRANCHES _LISTMR
+	_LISTMR=$(curl --silent "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests?state=opened" \
+		--header "PRIVATE-TOKEN:${ACCESS_TOKEN}")
+	_COUNTBRANCHES=$(echo "${_LISTMR}" | grep -o "\"source_branch\":\"${CI_COMMIT_REF_NAME}\"" | wc -l)
+
+	if [ "${_COUNTBRANCHES}" -eq "0" ]; then
+		_MR_EXISTS=0
+	else
+		_MR_EXISTS=1
+	fi
 
 	# The description of our new MR, we want to remove the branch after the MR has
 	# been closed
@@ -186,15 +211,8 @@ function create_mr() {
 	\"labels\": \"ci,human-review,update\"
 	}"
 
-	# Require a list of all the merge request and take a look if there is already
-	# one with the same source branch
-	local _COUNTBRANCHES _LISTMR
-	_LISTMR=$(curl --silent "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests?state=opened" \
-		--header "PRIVATE-TOKEN:${ACCESS_TOKEN}")
-	_COUNTBRANCHES=$(echo "${_LISTMR}" | grep -o "\"source_branch\":\"${CI_COMMIT_REF_NAME}\"" | wc -l)
-
 	# No MR found, let's create a new one
-	if [ "${_COUNTBRANCHES}" -eq "0" ]; then
+	if [ "$_MR_EXISTS" == 0 ]; then
 		curl -X POST "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests" \
 			--header "PRIVATE-TOKEN:${ACCESS_TOKEN}" \
 			--header "Content-Type: application/json" \
@@ -214,27 +232,41 @@ for package in "${_PKGNAME[@]}"; do
 	# Get the latest tag from the GitLab API
 	_LATEST=$(curl -s "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=${_PKGNAME[$_COUNTER]}" | jq '.results.[0].Version')
 
+	# Check if a branch dedicated to updating the package already exists
+	# if it does, switch to it to compare against the latest version
+	exists-branch
+	[ "$_BRANCH_EXISTS" == 1 ] && git checkout "update-${_PKGNAME[$_COUNTER]}"
+
 	cd "${_PKGNAME[$_COUNTER]}" || echo "Failed to cd into ${_PKGNAME[$_COUNTER]}!"
 
-	# shellcheck disable=SC1091
+	# shellcheck source=/dev/null
 	source PKGBUILD || echo "Failed to source PKGBUILD for ${_PKGNAME[$_COUNTER]}!"
 
-	if [[ "$pkgver"-"$pkgrel" != "$_LATEST" ]]; then
-		# Create a temporary directory to work with
-		_TMPDIR=/tmp #$(mktemp -d)
+	read-variables "old"
+	read-variables "new"
+	read-functions
+	classify-update
+
+	if [[ $_NEEDS_REVIEW == 1 ]]; then
+		# If review is needed, always create a merge request
+		_TMPDIR=$(mktemp -d)
 		_CURRDIR=$(pwd)
 
-		read-variables "old"
-		read-variables "new"
-		classify-update
-		read-functions
 		update_pkgbuild
-		[[ $_NEEDS_REVIEW == 1 ]] && create_mr
+		create_mr
+	elif [[ "$pkgver"-"$pkgrel" != "$_LATEST" ]]; then
+		# Otherwise just push the version update to main
+		_TMPDIR=$(mktemp -d)
+		_CURRDIR=$(pwd)
+
+		update_pkgbuild
 	else
 		echo "${_PKGNAME[$_COUNTER]} is up to date"
 	fi
 
 	cd .. || echo "Failed to change back to the previous directory!"
+	[[ $(git branch --show-current) != "main" ]] && git switch main
+
 	((_COUNTER++))
 
 	# Try to avoid rate limiting
