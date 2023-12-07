@@ -67,7 +67,6 @@ function read-functions() {
 	source PKGBUILD
 	_OLDFUNCS=$(declare -f)
 
-	_NEWPKG=$(curl "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$_COUNTER]}")
 	# shellcheck disable=SC1090
 	source <(echo "$_NEWPKG")
 	_NEWFUNCS=$(declare -f)
@@ -75,8 +74,10 @@ function read-functions() {
 	if [[ "${_OLDFUNCS[*]}" != "${_NEWFUNCS[*]}" ]]; then
 		echo "Functions have changed, please review the PKGBUILD!"
 		_NEEDS_REVIEW=1
+		_NEEDS_UPDATE=1
 	else
 		echo "Functions have not changed, continuing!"
+		_NEEDS_UPDATE=0
 	fi
 }
 
@@ -91,9 +92,6 @@ function exists-branch() {
 function classify-update() {
 	# Used to determine whether the update changes integral parts of the
 	# PKGBUILD, thus requiring a human review
-	# shellcheck disable=SC1090
-	_NEWPKG=$(curl "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$_COUNTER]}")
-
 	[[ "$_OLDARCH" != "$_NEWARCH" ]] && _DIFFS+=("arch")
 	[[ "$_OLDBACKUP" != "$_NEWBACKUP" ]] && _DIFFS+=("backup")
 	[[ "$_OLDBUILD" != "$_NEWBUILD" ]] && _DIFFS+=("build")
@@ -115,7 +113,13 @@ function classify-update() {
 	[[ "$_OLDURL" != "$_NEWURL" ]] && _DIFFS+=("url")
 	[[ "$_OLDVER" != "$_NEWVER" ]] && _DIFFS+=("pkgver")
 
-	echo "The following changes were detected: ${_DIFFS[*]}"
+	if [[ ${_DIFFS[*]} != "" ]]; then
+		echo "The following changes were detected: ${_DIFFS[*]}"
+		_NEEDS_UPDATE=1
+	else
+		echo "No variable changes detected, continuing!"
+		_NEEDS_UPDATE=0
+	fi
 
 	for algorithm in sha1sums sha256sums sha512sums md5sums; do
 		# shellcheck disable=2076
@@ -231,6 +235,7 @@ _COUNTER=0
 for package in "${_PKGNAME[@]}"; do
 	# Get the latest tag from the GitLab API
 	_LATEST=$(curl -s "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=${_PKGNAME[$_COUNTER]}" | jq '.results.[0].Version')
+	_NEWPKG=$(curl -s "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$_COUNTER]}")
 
 	# Check if a branch dedicated to updating the package already exists
 	# if it does, switch to it to compare against the latest version
@@ -247,7 +252,9 @@ for package in "${_PKGNAME[@]}"; do
 	read-functions
 	classify-update
 
-	if [[ $_NEEDS_REVIEW == 1 ]]; then
+	if [[ $_NEEDS_UPDATE == 0 ]]; then
+		continue
+	elif [[ $_NEEDS_REVIEW == 1 ]]; then
 		# If review is needed, always create a merge request
 		_TMPDIR=$(mktemp -d)
 		_CURRDIR=$(pwd)
