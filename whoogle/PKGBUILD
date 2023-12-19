@@ -28,7 +28,7 @@ prepare() {
 
 build() {
 	# Following official instructions
-	cd $pkgname-search || exit
+	cd $pkgname-search
 	python3 -m venv venv
 	source venv/bin/activate
 	pip install -r requirements.txt
