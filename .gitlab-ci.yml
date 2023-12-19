@@ -109,7 +109,7 @@ build-package:
     - echo "$DEPLOY_KEY" >/app/sshkey
     - chmod 400 /app/sshkey
     # Now that we have the SSH key, we can execute the entrypoint to set up the SSH tunnel
-    - /entry_point.sh
+    - /entry_point.sh database
     - apk add --no-cache --upgrade bash
   script:
     - bash .ci/schedule-package.sh
