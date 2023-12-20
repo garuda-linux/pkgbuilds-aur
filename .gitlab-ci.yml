@@ -29,6 +29,18 @@ check-lint:
   rules:
     - if: $BUMPVER != "1"
 
+check-namcap:
+  # Check the source PKGBUILDs for common packaging mistakes
+  stage: checks
+  image: archlinux:latest
+  inherit:
+    variables: false
+  script:
+    - pacman -Syu --noconfirm namcap
+    - namcap -i */PKGBUILD || true # be graceful for now
+  rules:
+    - if: $BUMPVER != "1"
+
 check-pr-commitizen:
   # Check the current commit message for compliance with commitizen
   stage: checks
