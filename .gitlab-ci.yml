@@ -29,15 +29,18 @@ check-lint:
   rules:
     - if: $BUMPVER != "1"
 
-check-namcap:
+check-pkgbuild:
   # Check the source PKGBUILDs for common packaging mistakes
   stage: checks
   image: archlinux:latest
   inherit:
     variables: false
-  script:
+  before_script:
     - pacman -Syu --noconfirm namcap
+    - pacman -U --noconfirm https://builds.garudalinux.org/repos/chaotic-aur/x86_64/aura-3.2.9-1.1-x86_64.pkg.tar.zst
+  script:
     - namcap -i */PKGBUILD || true # be graceful for now
+    - aura -Pf */PKGBUILD || true
   rules:
     - if: $BUMPVER != "1"
 
