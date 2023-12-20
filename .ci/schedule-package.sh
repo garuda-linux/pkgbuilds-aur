@@ -11,7 +11,7 @@ function parse-commit() {
         for package in "${_PACKAGES[@]}"; do
             [[ "$CI_COMMIT_MESSAGE" == *"[deploy $package]"* ]] &&
                 _PKG="$package"
-                echo "Requested package build for $package."
+            echo "Requested package build for $package."
             break
         done
     else
@@ -19,17 +19,11 @@ function parse-commit() {
     fi
 }
 
-function schedule-pkg() {
-    # Schedules a package build on the chaotic-v4 container of immortalis, using chaotic-manager
-    /entry_point.sh schedule --repo "$BUILD_REPO" "$1"
-}
-
 parse-commit
 
 if [[ "$_PKG" == "full_run" ]]; then
-    for package in "${_PACKAGES[@]}"; do
-        schedule-pkg "$package"
-    done
+    # shellcheck disable=SC2068
+    /entry_point.sh schedule --repo "$BUILD_REPO" "${_PACKAGES[@]}"
 else
-  schedule-pkg "$_PKG"
-fi 
+    /entry_point.sh schedule --repo "$BUILD_REPO" "$_PKG"
+fi
