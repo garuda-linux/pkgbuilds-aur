@@ -5,7 +5,7 @@ function parse-commit() {
     mapfile -t _PACKAGES < <(find . -mindepth 1 -type d -prune | sed -e '/.\./d' -e 's/.\///g')
 
     if [[ "$CI_COMMIT_MESSAGE" == *"[deploy all]"* ]]; then
-        _PKG="$package"
+        _PKG="full_run"
         echo "Requested a full routine run."
     elif [[ "$CI_COMMIT_MESSAGE" == *"[deploy"*"]"* ]]; then
         for package in "${_PACKAGES[@]}"; do
@@ -25,4 +25,11 @@ function schedule-pkg() {
 }
 
 parse-commit
-schedule-pkg "$_PKG"
+
+if [[ "$_PKG" == "full_run" ]]; then
+    for package in "${_PACKAGES[@]}"; do
+        schedule-pkg "$package"
+    done
+else
+  schedule-pkg "$_PKG"
+fi 
