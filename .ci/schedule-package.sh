@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 function parse-commit() {
-    # Parse our commit message for which packages to build
+    # Parse our commit message for which packages to build based on folder names
     mapfile -t _PACKAGES < <(find . -mindepth 1 -type d -prune | sed -e '/.\./d' -e 's/.\///g')
 
     if [[ "$CI_COMMIT_MESSAGE" == *"[deploy all]"* ]]; then
@@ -19,11 +19,15 @@ function parse-commit() {
     fi
 }
 
-parse-commit
+schedule-package() {
+    # Schedule either a full run or a single package using chaotic-manager
+    # the entry_point script also establishes a connection to our Redis server
+    if [[ "$_PKG" == "full_run" ]]; then
+        /entry_point.sh schedule --repo "$BUILD_REPO" "${_PACKAGES[@]}"
+    else
+        /entry_point.sh schedule --repo "$BUILD_REPO" "$_PKG"
+    fi
+}
 
-if [[ "$_PKG" == "full_run" ]]; then
-    # shellcheck disable=SC2068
-    /entry_point.sh schedule --repo "$BUILD_REPO" "${_PACKAGES[@]}"
-else
-    /entry_point.sh schedule --repo "$BUILD_REPO" "$_PKG"
-fi
+parse-commit
+schedule-package
