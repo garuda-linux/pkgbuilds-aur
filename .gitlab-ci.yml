@@ -49,8 +49,7 @@ check-pkgbuild:
         echo "" >>/etc/pacman.conf &&
     - pacman -Syu --noconfirm aura
   script:
-    - namcap -i */PKGBUILD || true # be graceful for now
-    - aura -Pf */PKGBUILD || true
+    - bash .ci/check-pkgbuild.sh
   rules:
     - if: $BUMPVER != "1"
 
