@@ -72,11 +72,13 @@ function read-functions() {
 	_NEWFUNCS=$(declare -f)
 
 	if [[ "${_OLDFUNCS[*]}" != "${_NEWFUNCS[*]}" ]]; then
-		echo "Functions have changed, please review the PKGBUILD!"
-		NEEDS_REVIEW=1
-		MEEDS_UPDATE=1
+		echo "Function changes detected..."
+		((_NEEDS_REVIEW++))
+		((_NEEDS_UPDATE++))
 	else
-		echo "Functions have not changed, continuing!"
+		echo "No function changes detected..."
+		_NEEDS_REVIEW=0
+		_NEEDS_UPDATE=0
 	fi
 }
 
@@ -113,10 +115,10 @@ function classify-update() {
 	[[ "$_OLDVER" != "$_NEWVER" ]] && _DIFFS+=("pkgver")
 
 	if [[ ${_DIFFS[*]} != "" ]]; then
-		echo "The following changes were detected: ${_DIFFS[*]}"
-		_NEEDS_UPDATE=1
+		echo "Variable changes detected: ${_DIFFS[*]}"
+		((_NEEDS_UPDATE++))
 	else
-		echo "No variable changes detected, continuing!"
+		echo "No variable changes detected..."
 	fi
 
 	for algorithm in sha1sums sha256sums sha512sums md5sums; do
@@ -130,25 +132,21 @@ function classify-update() {
 	# ~ to be improved
 	if [[ "${#_DIFFS[@]}" -lt 4 ]]; then
 		# shellcheck disable=2076
-		if [[ "${_DIFFS[*]}" =~ "pkgver" ]]; then
-			[[ "${_DIFFS[*]}" =~ "$_CURRENT_ALG" ]]
-			[[ "${_DIFFS[*]}" =~ "source" ]]
-			echo "No major changes detected, updating PKGBUILD!"
-		fi
+		[[ "${_DIFFS[*]}" =~ "pkgver" ]] &&
+			[[ "${_DIFFS[*]}" =~ "$_CURRENT_ALG" ]] &&
+			[[ "${_DIFFS[*]}" =~ "source" ]] &&
+			return 0
 	elif [[ "${#_DIFFS[@]}" -lt 3 ]]; then
 		# shellcheck disable=2076
-		if [[ "${_DIFFS[*]}" =~ "pkgver" ]]; then
-			[[ "${_DIFFS[*]}" =~ "$_CURRENT_ALG" ]]
-			echo "No major changes detected, updating PKGBUILD!"
-		fi
+		[[ "${_DIFFS[*]}" =~ "pkgver" ]] &&
+			[[ "${_DIFFS[*]}" =~ "$_CURRENT_ALG" ]] &&
+			return 0
 	elif [[ "${#_DIFFS[@]}" -lt 2 ]]; then
 		# shellcheck disable=2076
-		if [[ "${_DIFFS[*]}" =~ "pkgrel" ]]; then
-			echo "No major changes detected, updating PKGBUILD!"
-		fi
+		[[ "${_DIFFS[*]}" =~ "pkgrel" ]] &&
+			return 0
 	else
-		echo "Please review the changes and update the PKGBUILD accordingly!"
-		_NEEDS_REVIEW=1
+		((_NEEDS_REVIEW++))
 	fi
 }
 
@@ -191,7 +189,7 @@ function create_mr() {
 		--header "PRIVATE-TOKEN:${ACCESS_TOKEN}")
 	_COUNTBRANCHES=$(echo "${_LISTMR}" | grep -o "\"source_branch\":\"${CI_COMMIT_REF_NAME}\"" | wc -l)
 
-	if [ "${_COUNTBRANCHES}" -eq "0" ]; then
+	if [ "${_COUNTBRANCHES}" == "0" ]; then
 		_MR_EXISTS=0
 	else
 		_MR_EXISTS=1
@@ -209,7 +207,7 @@ function create_mr() {
 	\"subscribed\" : true,
 	\"approvals_before_merge\" 1,
 	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL}\",
-	\"description\": \"The recent update of this package requires humnan reviewal! 🧐\",
+	\"description\": \"The recent update of this package requires humnan reviewal!\",
 	\"labels\": \"ci,human-review,update\"
 	}"
 
@@ -257,6 +255,7 @@ for package in "${_PKGNAME[@]}"; do
 		_TMPDIR=$(mktemp -d)
 		_CURRDIR=$(pwd)
 
+		echo "Major changes detected, please review them manually!"
 		update_pkgbuild
 		create_mr
 	elif [[ "$_OLDVER"-"$_OLDPKGREL" != "$_LATEST" ]]; then
