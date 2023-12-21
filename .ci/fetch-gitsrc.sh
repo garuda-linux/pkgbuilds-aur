@@ -20,25 +20,31 @@ for package in "${_VCS_PKG[@]}"; do
     printf "\nChecking %s...\n" "$package"
     pushd "$package" || echo "Failed to change into $package!"
 
+    # Get PKGBUILD's variables
+    # shellcheck source=/dev/null
+    source PKGBUILD
+
+    # Abort mission if sources() contains a fixed commit
+    for fragment in branch commit tag revision; do
+        if [[ "$sources" == *"$fragment"* ]]; then
+            echo "Can't update pkgver due to fixed $fragment, continuing."
+            continue
+        fi
+    done
+
     # Download and extract sources, skipping deps
     sudo -Eu nobody makepkg -do
 
-    # Set up environment with required variables
-    # shellcheck source=/dev/null
-    source PKGBUILD
-    srcdir=$(readlink -f src)
-
     # Run pkgver function of the sourced PKGBUILD
-    _NEWVER=$(pkgver)
     sudo -Eu nobody makepkg --printsrcinfo | tee .SRCINFO &>/dev/null
 
-	if ! git diff --exit-code --quiet; then
-		git add PKGBUILD .SRCINFO
-		git commit -m "chore($package): git-version $pkgver [deploy $package]"
-		git push "$REPO_URL" HEAD:main || git pull --rebase && git push "$REPO_URL" HEAD:main # Env provided via GitLab CI
-	else
-		echo "Package already up-to-date."
-	fi
+    if ! git diff --exit-code --quiet; then
+        git add PKGBUILD .SRCINFO
+        git commit -m "chore($package): git-version $pkgver [deploy $package]"
+        git push "$REPO_URL" HEAD:main || git pull --rebase && git push "$REPO_URL" HEAD:main # Env provided via GitLab CI
+    else
+        echo "Package already up-to-date."
+    fi
 
     # Cleanup stuff left behind, like sources
     git reset --hard HEAD
