@@ -9,11 +9,13 @@ function parse-commit() {
         echo "Requested a full routine run."
     elif [[ "$CI_COMMIT_MESSAGE" == *"[deploy"*"]"* ]]; then
         for package in "${_PACKAGES[@]}"; do
-            [[ "$CI_COMMIT_MESSAGE" == *"[deploy $package]"* ]] &&
+            if [[ "$CI_COMMIT_MESSAGE" == *"[deploy $package]"* ]]; then
                 _PKG="$package"
-            echo "Requested package build for $package."
-            break
+                echo "Requested package build for $package."
+                return 0
+            fi
         done
+        echo "No package to build found in commit message. Exiting." && exit 1
     else
         echo "No package to build found in commit message. Exiting." && exit 1
     fi
