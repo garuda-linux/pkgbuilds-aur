@@ -204,10 +204,10 @@ function create_mr() {
 	\"remove_source_branch\": true,
 	\"force_remove_source_branch\": false,
 	\"allow_collaboration\": true,
-	\"subscribed\" : true,
-	\"approvals_before_merge\" 1,
+	\"subscribed\" : false,
+	\"approvals_before_merge\": \"1\",
 	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL}\",
-	\"description\": \"The recent update of this package requires humnan reviewal!\",
+	\"description\": \"The recent update of this package requires human reviewal!\",
 	\"labels\": \"ci,human-review,update\"
 	}"
 
@@ -229,6 +229,8 @@ readarray -t _PKGNAME < <(awk -F ' ' '{ print $2 }' ./SOURCES)
 
 _COUNTER=0
 for package in "${_PKGNAME[@]}"; do
+	echo "Checking ${_PKGNAME[$_COUNTER]}..."
+
 	# Get the latest tag from the GitLab API
 	_LATEST=$(curl -s "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=${_PKGNAME[$_COUNTER]}" | jq '.results.[0].Version')
 	_NEWPKG=$(curl -s "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$_COUNTER]}")
