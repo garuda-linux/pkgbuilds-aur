@@ -10,6 +10,7 @@ mapfile -t _PACKAGES < <(find . -mindepth 1 -type d -prune | sed -e '/.\./d' -e 
 # This is required for makepkg
 # shellcheck source=/dev/null
 source /etc/makepkg.conf
+chown -R nobody:root .
 
 # Get a list of all packages containing "-git"
 IFS=$'\n'
@@ -20,7 +21,7 @@ for package in "${_VCS_PKG[@]}"; do
     pushd "$package" || echo "Failed to change into $package!"
 
     # Download and extract sources, skipping deps
-    makepkg -do
+    sudo -Eu nobody makepkg -do
 
     # Set up environment with required variables
     # shellcheck source=/dev/null
@@ -29,7 +30,7 @@ for package in "${_VCS_PKG[@]}"; do
 
     # Run pkgver function of the sourced PKGBUILD
     _NEWVER=$(pkgver)
-    makepkg --printsrcinfo > .SRCINFO
+    sudo -Eu nobody makepkg --printsrcinfo | tee .SRCINFO
 
 	if ! git diff --exit-code --quiet; then
 		git add PKGBUILD .SRCINFO
