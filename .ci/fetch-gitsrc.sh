@@ -10,7 +10,8 @@ mapfile -t _PACKAGES < <(find . -mindepth 1 -type d -prune | sed -e '/.\./d' -e 
 # This is required for makepkg
 # shellcheck source=/dev/null
 source /etc/makepkg.conf
-chown -R nobody:root .
+chown -R nobody:root "$CI_PROJECT_DIR"
+git config --global --add safe.directory "$CI_PROJECT_DIR"
 
 # Get a list of all packages containing "-git"
 IFS=$'\n'
@@ -40,5 +41,4 @@ for package in "${_VCS_PKG[@]}"; do
 		echo "Package already up-to-date."
 	fi
 
-    popd || echo "Failed to change into previous directory!"
 done
