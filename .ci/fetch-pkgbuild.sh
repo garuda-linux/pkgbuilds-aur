@@ -73,11 +73,10 @@ function read-functions() {
 
 	if [[ "${_OLDFUNCS[*]}" != "${_NEWFUNCS[*]}" ]]; then
 		echo "Functions have changed, please review the PKGBUILD!"
-		_NEEDS_REVIEW=1
-		_NEEDS_UPDATE=1
+		NEEDS_REVIEW=1
+		MEEDS_UPDATE=1
 	else
 		echo "Functions have not changed, continuing!"
-		_NEEDS_UPDATE=0
 	fi
 }
 
@@ -118,7 +117,6 @@ function classify-update() {
 		_NEEDS_UPDATE=1
 	else
 		echo "No variable changes detected, continuing!"
-		_NEEDS_UPDATE=0
 	fi
 
 	for algorithm in sha1sums sha256sums sha512sums md5sums; do
@@ -132,22 +130,22 @@ function classify-update() {
 	# ~ to be improved
 	if [[ "${#_DIFFS[@]}" -lt 4 ]]; then
 		# shellcheck disable=2076
-		[[ "${_DIFFS[*]}" =~ "pkgver" ]] &&
-			[[ "${_DIFFS[*]}" =~ "$_CURRENT_ALG" ]] &&
-			[[ "${_DIFFS[*]}" =~ "source" ]] &&
-			echo "No major changes detected, updating PKGBUILD!" &&
-			_NEEDS_REVIEW=0
+		if [[ "${_DIFFS[*]}" =~ "pkgver" ]]; then
+			[[ "${_DIFFS[*]}" =~ "$_CURRENT_ALG" ]]
+			[[ "${_DIFFS[*]}" =~ "source" ]]
+			echo "No major changes detected, updating PKGBUILD!"
+		fi
 	elif [[ "${#_DIFFS[@]}" -lt 3 ]]; then
 		# shellcheck disable=2076
-		[[ "${_DIFFS[*]}" =~ "pkgver" ]] &&
-			[[ "${_DIFFS[*]}" =~ "$_CURRENT_ALG" ]] &&
-			echo "No major changes detected, updating PKGBUILD!" &&
-			_NEEDS_REVIEW=0
+		if [[ "${_DIFFS[*]}" =~ "pkgver" ]]; then
+			[[ "${_DIFFS[*]}" =~ "$_CURRENT_ALG" ]]
+			echo "No major changes detected, updating PKGBUILD!"
+		fi
 	elif [[ "${#_DIFFS[@]}" -lt 2 ]]; then
 		# shellcheck disable=2076
-		[[ "${_DIFFS[*]}" =~ "pkgrel" ]] &&
-			echo "No major changes detected, updating PKGBUILD!" &&
-			_NEEDS_REVIEW=0
+		if [[ "${_DIFFS[*]}" =~ "pkgrel" ]]; then
+			echo "No major changes detected, updating PKGBUILD!"
+		fi
 	else
 		echo "Please review the changes and update the PKGBUILD accordingly!"
 		_NEEDS_REVIEW=1
@@ -158,7 +156,7 @@ function update_pkgbuild() {
 	git clone "https://aur.archlinux.org/${_PKGNAME[$_COUNTER]}.git" "$_TMPDIR/source"
 
 	# Switch to a new branch and put new files in place, in case non-trivial changes
-	if [[ $_NEEDS_REVIEW == 1 ]]; then
+	if [[ $_NEEDS_REVIEW -gt 0 ]]; then
 		_TARGET_BRANCH="update-${_PKGNAME[$_COUNTER]}"
 	else
 		_TARGET_BRANCH=main
@@ -221,7 +219,7 @@ function create_mr() {
 			--header "PRIVATE-TOKEN:${ACCESS_TOKEN}" \
 			--header "Content-Type: application/json" \
 			--data "${BODY}" &&
-			echo "Opened a new merge request: chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER} -> ${_NEWVER}" ||
+			echo "Opened a new merge request: chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL}" ||
 			echo "Failed to open a new merge request!"
 	else
 		echo "No new merge request opened due to an already existing MR."
@@ -254,7 +252,7 @@ for package in "${_PKGNAME[@]}"; do
 
 	if [[ $_NEEDS_UPDATE == 0 ]]; then
 		continue
-	elif [[ $_NEEDS_REVIEW == 1 ]]; then
+	elif [[ $_NEEDS_REVIEW != 0 ]]; then
 		# If review is needed, always create a merge request
 		_TMPDIR=$(mktemp -d)
 		_CURRDIR=$(pwd)
