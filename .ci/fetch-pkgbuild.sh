@@ -206,7 +206,7 @@ function create_mr() {
 	\"allow_collaboration\": true,
 	\"subscribed\" : false,
 	\"approvals_before_merge\": \"1\",
-	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL}\",
+	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL} [deploy ${_PKGNAME[$_COUNTER]}]\",
 	\"description\": \"The recent update of this package requires human reviewal!\",
 	\"labels\": \"ci,human-review,update\"
 	}"
