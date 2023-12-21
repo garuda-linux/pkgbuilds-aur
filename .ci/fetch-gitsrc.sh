@@ -32,9 +32,6 @@ for package in "${_VCS_PKG[@]}"; do
     _NEWVER=$(pkgver)
     sudo -Eu nobody makepkg --printsrcinfo | tee .SRCINFO &>/dev/null
 
-    # Silence dubious ownership warnings
-    chown -R nobody:root "$CI_PROJECT_DIR"
-
 	if ! git diff --exit-code --quiet; then
 		git add PKGBUILD .SRCINFO
 		git commit -m "chore($package): git-version $pkgver [deploy $package]"
