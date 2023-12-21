@@ -11,7 +11,6 @@ mapfile -t _PACKAGES < <(find . -mindepth 1 -type d -prune | sed -e '/.\./d' -e 
 # shellcheck source=/dev/null
 source /etc/makepkg.conf
 chown -R nobody:root "$CI_PROJECT_DIR"
-git config --global --add safe.directory "$CI_PROJECT_DIR"
 
 # Get a list of all packages containing "-git"
 IFS=$'\n'
@@ -31,14 +30,20 @@ for package in "${_VCS_PKG[@]}"; do
 
     # Run pkgver function of the sourced PKGBUILD
     _NEWVER=$(pkgver)
-    sudo -Eu nobody makepkg --printsrcinfo | tee .SRCINFO
+    sudo -Eu nobody makepkg --printsrcinfo | tee .SRCINFO &>/dev/null
+
+    # Silence dubious ownership warnings
+    chown -R nobody:root "$CI_PROJECT_DIR"
 
 	if ! git diff --exit-code --quiet; then
 		git add PKGBUILD .SRCINFO
 		git commit -m "chore($package): git-version $pkgver [deploy $package]"
-		git push "$REPO_URL" HEAD:main || git pull --rebase && git push "$REPO_URL" HEAD:main # Env provided via GitLab CI 
+		git push "$REPO_URL" HEAD:main || git pull --rebase && git push "$REPO_URL" HEAD:main # Env provided via GitLab CI
 	else
 		echo "Package already up-to-date."
 	fi
 
+    # Cleanup stuff left behind, like sources
+    git reset --hard HEAD
+    git clean -fd
 done
