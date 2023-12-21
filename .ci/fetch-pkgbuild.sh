@@ -135,18 +135,18 @@ function classify-update() {
 		[[ "${_DIFFS[*]}" =~ "pkgver" ]] &&
 			[[ "${_DIFFS[*]}" =~ "$_CURRENT_ALG" ]] &&
 			[[ "${_DIFFS[*]}" =~ "source" ]] &&
-			echo "No major detected, updating PKGBUILD!" &&
+			echo "No major changes detected, updating PKGBUILD!" &&
 			_NEEDS_REVIEW=0
 	elif [[ "${#_DIFFS[@]}" -lt 3 ]]; then
 		# shellcheck disable=2076
 		[[ "${_DIFFS[*]}" =~ "pkgver" ]] &&
 			[[ "${_DIFFS[*]}" =~ "$_CURRENT_ALG" ]] &&
-			echo "No major detected, updating PKGBUILD!" &&
+			echo "No major changes detected, updating PKGBUILD!" &&
 			_NEEDS_REVIEW=0
 	elif [[ "${#_DIFFS[@]}" -lt 2 ]]; then
 		# shellcheck disable=2076
 		[[ "${_DIFFS[*]}" =~ "pkgrel" ]] &&
-			echo "No major detected, updating PKGBUILD!" &&
+			echo "No major changes detected, updating PKGBUILD!" &&
 			_NEEDS_REVIEW=0
 	else
 		echo "Please review the changes and update the PKGBUILD accordingly!"
@@ -167,13 +167,13 @@ function update_pkgbuild() {
 	cp -v "$_TMPDIR"/source/* "$_CURRDIR"
 
 	# Format the PKGBUILD
-	shfmt -w -d PKGBUILD
+	shfmt -w "$_CURRDIR/PKGBUILD"
 
 	# Only push if there are changes
 	if ! git diff --exit-code --quiet; then
 		git add .
 		# Commit and push the changes to our new branch
-		git commit -m "chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}"
+		git commit -m "chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER} -> ${_NEWVER} [deploy ${_PKGNAME[$_COUNTER]}]"
 
 		# We force push here, because we want to overwrite in case of updates
 		git push "$REPO_URL" HEAD:"$_TARGET_BRANCH" -f # Env provided via GitLab CI
@@ -210,7 +210,7 @@ function create_mr() {
 	\"allow_collaboration\": true,
 	\"subscribed\" : true,
 	\"approvals_before_merge\" 1,
-	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}\",
+	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER} -> ${_NEWVER}\",
 	\"description\": \"The recent update of this package requires humnan reviewal! 🧐\",
 	\"labels\": \"ci,human-review,update\"
 	}"
@@ -221,7 +221,7 @@ function create_mr() {
 			--header "PRIVATE-TOKEN:${ACCESS_TOKEN}" \
 			--header "Content-Type: application/json" \
 			--data "${BODY}" &&
-			echo "Opened a new merge request: chore(${_PKGNAME[$_COUNTER]}): ${pkgver} -> ${_NEWVER}" ||
+			echo "Opened a new merge request: chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER} -> ${_NEWVER}" ||
 			echo "Failed to open a new merge request!"
 	else
 		echo "No new merge request opened due to an already existing MR."
@@ -261,7 +261,7 @@ for package in "${_PKGNAME[@]}"; do
 
 		update_pkgbuild
 		create_mr
-	elif [[ "$pkgver"-"$pkgrel" != "$_LATEST" ]]; then
+	elif [[ "$_OLDVER"-"$_OLDPKGREL" != "$_LATEST" ]]; then
 		# Otherwise just push the version update to main
 		_TMPDIR=$(mktemp -d)
 		_CURRDIR=$(pwd)
