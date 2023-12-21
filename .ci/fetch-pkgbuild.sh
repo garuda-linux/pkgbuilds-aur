@@ -173,7 +173,7 @@ function update_pkgbuild() {
 	if ! git diff --exit-code --quiet; then
 		git add .
 		# Commit and push the changes to our new branch
-		git commit -m "chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER} -> ${_NEWVER} [deploy ${_PKGNAME[$_COUNTER]}]"
+		git commit -m "chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL} [deploy ${_PKGNAME[$_COUNTER]}]"
 
 		# We force push here, because we want to overwrite in case of updates
 		git push "$REPO_URL" HEAD:"$_TARGET_BRANCH" -f # Env provided via GitLab CI
@@ -210,7 +210,7 @@ function create_mr() {
 	\"allow_collaboration\": true,
 	\"subscribed\" : true,
 	\"approvals_before_merge\" 1,
-	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER} -> ${_NEWVER}\",
+	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL}\",
 	\"description\": \"The recent update of this package requires humnan reviewal! 🧐\",
 	\"labels\": \"ci,human-review,update\"
 	}"
