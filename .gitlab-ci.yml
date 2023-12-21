@@ -73,9 +73,9 @@ fetch-gitsrc:
   # This basically updates the version in the PKGBUILD based on fetched git repos
   # it then requests a new package build in case a new git revision got detected
   stage: update-pkgbuilds
-  image: alpine:latest
+  image: archlinux:latest
   script:
-    - apk add --no-cache --upgrade base-devel bash curl git
+    - pacman -Syu --noconfirm base-devel bash curl git
     - git clone https://gitlab.com/garuda-linux/pkgsbuilds-aur.git
     - cd pkgsbuilds-aur
     - git config --global user.name "$GIT_AUTHOR_NAME"
