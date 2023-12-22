@@ -33,10 +33,10 @@ push-aur() {
         test -f "$_CURRDIR"/"$package"/.CI_CONFIG && source "$_CURRDIR"/"$package"/.CI_CONFIG
 
         if [[ "$CI_MANAGE_AUR" != 1 ]]; then
-            printf "\nAUR management for %s is not enabled via .CI_CONFIG.\n" "$package" && continue
+            printf "AUR management for %s is not enabled via .CI_CONFIG.\n\n" "$package" && continue
         fi
 
-        printf "\nPushing %s to AUR...\n" "$package"
+        echo "Pushing $package to AUR..."
 
         _TMPDIR=$(mktemp -d)
         export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new"
@@ -70,6 +70,7 @@ push-aur() {
         fi
 
         popd || echo "Failed to change back into $_CURRDIR!"
+        echo ""
     done
 }
 
