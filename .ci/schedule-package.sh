@@ -41,7 +41,7 @@ parse-gitdiff() {
         # Check whether relevant folders got changed
         for package in "${_PACKAGES[@]}"; do
             if [[ "$_CURRENT_DIFF" =~ "$package"/ ]]; then
-                _PKG+="$package"
+                _PKG+=("$package")
                 echo "Detected changes in $package, scheduling build..."
             fi
         done

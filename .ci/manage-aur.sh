@@ -15,7 +15,6 @@ parse-gitdiff() {
     for package in "${_PACKAGES[@]}"; do
         if [[ "$_CURRENT_DIFF" =~ "$package"/ ]]; then
             _PKG+=("$package")
-            echo "Detected changes in $package, will push updates to AUR..."
         fi
     done
 
@@ -38,6 +37,7 @@ push-aur() {
         printf "\nPushing %s to AUR...\n" "$package"
 
         _TMPDIR=$(mktemp -d)
+        export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new"
         git clone "ssh://aur@aur.archlinux.org/$package.git" "$_TMPDIR"
 
         # Transfer all files except for CI / tools specific ones
