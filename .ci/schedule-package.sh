@@ -45,6 +45,10 @@ parse-gitdiff() {
                 echo "Detected changes in $package, scheduling build..."
             fi
         done
+
+        if [[ "${#_PKG[@]}" == 0 ]]; then
+            echo "No relevant package changes to build found, exiting gracefully." && exit 0
+        fi
     else
         return 0
     fi
