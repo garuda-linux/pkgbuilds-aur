@@ -43,7 +43,6 @@ parse-gitdiff() {
             if [[ "$_CURRENT_DIFF" =~ "$package"/ ]]; then
                 _PKG+="$package"
                 echo "Detected changes in $package, scheduling build..."
-                return 0
             fi
         done
     else
