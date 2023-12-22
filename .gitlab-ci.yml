@@ -27,7 +27,14 @@ check-lint:
     - npm install -g markdownlint-cli
     - bash .ci/lint.sh || true # this will likely always fail at the beginning
   rules:
-    - if: $BUMPVER != "1"
+    - changes:
+        - "*.md"
+        - "*.yaml"
+        - "*.yml"
+        - "*/*.install"
+        - "*/PKGBUILD"
+        - ".ci/*"
+      if: $BUMPVER != "1"
 
 check-pkgbuild:
   # Check the source PKGBUILDs for common packaging mistakes
@@ -51,7 +58,9 @@ check-pkgbuild:
   script:
     - bash .ci/check-pkgbuild.sh
   rules:
-    - if: $BUMPVER != "1"
+    - changes:
+        - "*/PKGBUILD"
+      if: $BUMPVER != "1"
 
 check-pr-commitizen:
   # Check the current commit message for compliance with commitizen
