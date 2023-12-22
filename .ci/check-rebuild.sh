@@ -94,13 +94,15 @@ bump-affected() {
         cd ..
     done
 
-    # Commit and push the changes to our new branch
-    git add .
-    git commit -m "chore(package-rebuild): fix library version mismatches by rebuilding package" \
-        -m "Affected packages: ${_AFFECTED[*]}" \
-        -m "Bumped libraries: ${_BUMP_LIBS[*]}"
+    if [[ "${#_ALREADY_BUMPED[@]}" -gt 0 ]]; then
+        # Commit and push the changes to our new branch
+        git add .
+        git commit -m "chore(package-rebuild): fix library version mismatches by rebuilding package" \
+            -m "Affected packages: ${_AFFECTED[*]}" \
+            -m "Bumped libraries: ${_BUMP_LIBS[*]}"
 
-    git push "$REPO_URL" HEAD:main || git pull --rebase && git push "$REPO_URL" HEAD:main # Env provided via GitLab CI
+        git push "$REPO_URL" HEAD:main || git pull --rebase && git push "$REPO_URL" HEAD:main # Env provided via GitLab CI
+    fi
 
 }
 
