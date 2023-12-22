@@ -128,7 +128,7 @@ build-package:
     - '[[ -z ${DEPLOY_KEY+x} ]] && echo "No deploy key available, backing off!" && exit 1'
     - echo "$DEPLOY_KEY" >/app/sshkey
     - chmod 400 /app/sshkey
-    - apk add --no-cache --upgrade bash
+    - apk add --no-cache --upgrade bash git
   script:
     # This script determines whether a relevant change occurred and if so, builds the package
     # this can be triggered by either a [deploy *] commit message or changes of PKGBUILD folders
