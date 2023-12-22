@@ -230,10 +230,14 @@ readarray -t _PKGNAME < <(awk -F ' ' '{ print $2 }' ./SOURCES)
 _COUNTER=0
 for package in "${_PKGNAME[@]}"; do
 	echo "Checking ${_PKGNAME[$_COUNTER]}..."
-
-	# Get the latest tag from the GitLab API
-	_LATEST=$(curl -s "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=${_PKGNAME[$_COUNTER]}" | jq '.results.[0].Version')
 	_NEWPKG=$(curl -s "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$_COUNTER]}")
+
+	# Get the latest tag from via AUR RPC endpoint, using a placeholder for git packages
+	if [[ ! "$package" == *"-git"* ]]; then
+		_LATEST=$(curl -s "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=${_PKGNAME[$_COUNTER]}" | jq '.results.[0].Version')
+	else
+		_LATEST="git-src"
+	fi
 
 	# Check if a branch dedicated to updating the package already exists
 	# if it does, switch to it to compare against the latest version
@@ -260,6 +264,11 @@ for package in "${_PKGNAME[@]}"; do
 		echo "Major changes detected, please review them manually!"
 		update_pkgbuild
 		create_mr
+	elif [[ "$_LATEST" == "git-src" ]]; then
+		# If no review is required and the package is a git package, do nothing
+		# we generally just want to update the PKGBUILD in case its something like deps,
+		# functions or makedep changing. Up-to-date pkgver is maintained by us.
+		return 0
 	elif [[ "$_OLDVER"-"$_OLDPKGREL" != "$_LATEST" ]]; then
 		# Otherwise just push the version update to main
 		_TMPDIR=$(mktemp -d)
