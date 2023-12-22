@@ -143,6 +143,8 @@ push-pkgbuild:
     - chmod 600 /root/.ssh/id_rsa
     - apk add --no-cache --upgrade bash git openssh rsync 
   script:
+    - git config --global user.name "Chaotic-AUR CI"
+    - git config --global user.email "$GIT_AUTHOR_EMAIL"
     # This script determines whether a relevant change occurred and if so, pushes the package to AUR
     - bash .ci/manage-aur.sh
   rules:
