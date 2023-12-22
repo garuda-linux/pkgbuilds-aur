@@ -117,9 +117,9 @@ check-rebuilds:
   # This basically updates the version in the PKGBUILD and commits it
   # in case no major updates were detected
   stage: update-pkgbuilds
-  image: alpine:latest
+  image: archlinux:latest
   script:
-    - apk add --no-cache --upgrade bash bc
+    - pacman -Syu --noconfirm git
     - git clone https://gitlab.com/garuda-linux/pkgsbuilds-aur.git
     - cd pkgsbuilds-aur
     - git config --global user.name "$GIT_AUTHOR_NAME"

@@ -25,7 +25,7 @@ determine-diffs() {
 }
 
 determine-affected() {
-    # Parse our commit message for which packages to build based on folder names
+    # Build a list of valid packages
     mapfile -t _PACKAGES < <(find . -mindepth 1 -type d -prune | sed -e '/.\./d' -e 's/.\///g')
 
     for package in "${_PACKAGES[@]}"; do
