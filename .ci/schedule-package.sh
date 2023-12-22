@@ -25,9 +25,9 @@ schedule-package() {
     # Schedule either a full run or a single package using chaotic-manager
     # the entry_point script also establishes a connection to our Redis server
     if [[ "$_PKG" == "full_run" ]]; then
-        /entry_point.sh schedule --repo "$BUILD_REPO" "${_PACKAGES[@]}"
+        /entry_point.sh schedule --commit "${CI_COMMIT_SHA}" --repo "$BUILD_REPO" "${_PACKAGES[@]}"
     else
-        /entry_point.sh schedule --repo "$BUILD_REPO" "$_PKG"
+        /entry_point.sh schedule --commit "${CI_COMMIT_SHA}" --repo "$BUILD_REPO" "$_PKG"
     fi
 }
 
