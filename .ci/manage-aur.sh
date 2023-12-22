@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+for dep in git rsync ssh; do
+	command -v "$dep" &>/dev/null || echo "$dep is not installed!"
+done
+
 parse-gitdiff() {
     # Compare the last 2 commits
     _CURRENT_DIFF=$(git --no-pager diff --name-only HEAD~1..HEAD)
@@ -28,10 +32,10 @@ push-aur() {
         test -f "$_CURRDIR"/"$package"/.CI_CONFIG && source "$_CURRDIR"/"$package"/.CI_CONFIG
 
         if [[ "$CI_MANAGE_AUR" != 1 ]]; then
-            echo "AUR management for $package is disabled in .CI_CONFIG." && continue
+            printf "\nAUR management for %s is disabled in .CI_CONFIG.\n" "$package" && continue
         fi
 
-        printf "\nPushing %s to AUR..." "$package"
+        printf "\nPushing %s to AUR...\n" "$package"
 
         _TMPDIR=$(mktemp -d)
         git clone "ssh://aur@aur.archlinux.org/$package.git" "$_TMPDIR"

@@ -139,9 +139,9 @@ push-pkgbuild:
   before_script:
     - '[[ -z ${AUR_KEY+x} ]] && echo "No AUR SSH key available, backing off!" && exit 1'
     - mkdir /root/.ssh
-    - echo "$AUR_KEY" >/root/.ssh/id_ed25519
-    - chmod 600 /root/.ssh/id_ed25519
-    - apk add --no-cache --upgrade bash git
+    - echo "$AUR_KEY" >/root/.ssh/id_rsa
+    - chmod 600 /root/.ssh/id_rsa
+    - apk add --no-cache --upgrade bash git openssh rsync 
   script:
     # This script determines whether a relevant change occurred and if so, pushes the package to AUR
     - bash .ci/manage-aur.sh
