@@ -56,8 +56,10 @@ schedule-package() {
     # the entry_point script also establishes a connection to our Redis server
     if [[ "$_PKG" == "full_run" ]]; then
         /entry_point.sh schedule --commit "${CI_COMMIT_SHA}:${CI_PIPELINE_ID}" --repo "$BUILD_REPO" "${_PACKAGES[@]}"
-    else
+    elif [[ "${#_PKG[@]}" == 1 ]]; then
         /entry_point.sh schedule --commit "${CI_COMMIT_SHA}:${CI_PIPELINE_ID}" --repo "$BUILD_REPO" "$_PKG"
+    else
+        /entry_point.sh schedule --commit "${CI_COMMIT_SHA}:${CI_PIPELINE_ID}" --repo "$BUILD_REPO" "${_PKG[@]}"
     fi
 }
 
