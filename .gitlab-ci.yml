@@ -1,5 +1,5 @@
 ---
-stages: [checks, update-pkgbuilds, bump-version, build, deploy]
+stages: [checks, update-pkgbuilds, bump-version, schedule, deploy]
 
 variables:
   BUILD_REPO: garuda
@@ -113,8 +113,11 @@ fetch-pkgbuilds:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $BUMPVER == "1"
 
-build-package:
-  stage: build
+schedule-package:
+  # This script determines whether a relevant change occurred and if so, schedules a package build
+  # via the chaotic-manager container. The relevant jobs will occur as "external" jobs in the pipeline
+  # logs and will link to the build logs of the chaotic-manager container
+  stage: schedule
   image:
     name: registry.gitlab.com/garuda-linux/tools/chaotic-manager/manager
     entrypoint: [""] # override entrypoint as we don't have the needed key during first execution yet
