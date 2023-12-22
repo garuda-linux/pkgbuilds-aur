@@ -147,6 +147,6 @@ push-pkgbuild:
     - bash .ci/manage-aur.sh
   rules:
     - changes:
+        - "*/.SRCINFO"
         - "*/PKGBUILD"
-        - "*/*.install"
       if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

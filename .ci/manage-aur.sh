@@ -4,10 +4,13 @@ parse-gitdiff() {
     # Compare the last 2 commits
     _CURRENT_DIFF=$(git --no-pager diff --name-only HEAD~1..HEAD)
 
+    # Set up required variables
+    mapfile -t _PACKAGES < <(find . -mindepth 1 -type d -prune | sed -e '/.\./d' -e 's/.\///g')
+
     # Check whether relevant folders got changed
     for package in "${_PACKAGES[@]}"; do
         if [[ "$_CURRENT_DIFF" =~ "$package"/ ]]; then
-            _PKG+="$package"
+            _PKG+=("$package")
             echo "Detected changes in $package, will push updates to AUR..."
         fi
     done
@@ -24,7 +27,7 @@ push-aur() {
         # shellcheck source=/dev/null
         test -f "$_CURRDIR"/"$package"/.CI_CONFIG && source "$_CURRDIR"/"$package"/.CI_CONFIG
 
-        if [[ "$CI_MANAGE_AUR" == 0 ]]; then
+        if [[ "$CI_MANAGE_AUR" != 1 ]]; then
             echo "AUR management for $package is disabled in .CI_CONFIG." && continue
         fi
 
@@ -33,12 +36,14 @@ push-aur() {
         _TMPDIR=$(mktemp -d)
         git clone "ssh://aur@aur.archlinux.org/$package.git" "$_TMPDIR"
 
-        rsync --verbose --delete \
+        # Transfer all files except for CI / tools specific ones
+        rsync --archive --verbose --delete --quiet \
+            --exclude ".git" \
+            --exclude ".CI_CONFIG" \
             --exclude "interfere.patch" \
             --exclude "prepare" \
             --exclude "PKGBUILD.append" \
             --exclude "PKGBUILD.prepend" \
-            --include ".SRCINFO" \
             "$_CURRDIR/$package/" "$_TMPDIR"
 
         pushd "$_TMPDIR" || echo "Failed to change into $_TMPDIR!"
@@ -57,6 +62,8 @@ push-aur() {
         else
             echo "No changes detected, skipping!"
         fi
+
+        popd || echo "Failed to change back into $_CURRDIR!"
     done
 }
 
