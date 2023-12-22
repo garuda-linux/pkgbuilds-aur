@@ -27,11 +27,13 @@ push-aur() {
     for package in "${_PKG[@]}"; do
         _CURRDIR=$(pwd)
 
+        # Always set this to 0 to also handle missing .CI_CONFIG files gracefully
+        CI_MANAGE_AUR=0
         # shellcheck source=/dev/null
         test -f "$_CURRDIR"/"$package"/.CI_CONFIG && source "$_CURRDIR"/"$package"/.CI_CONFIG
 
         if [[ "$CI_MANAGE_AUR" != 1 ]]; then
-            printf "\nAUR management for %s is disabled in .CI_CONFIG.\n" "$package" && continue
+            printf "\nAUR management for %s is not enabled via .CI_CONFIG.\n" "$package" && continue
         fi
 
         printf "\nPushing %s to AUR...\n" "$package"
