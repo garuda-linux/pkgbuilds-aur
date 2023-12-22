@@ -120,7 +120,6 @@ update-versions:
       if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $UPDATE_DOCKER != "1"
 
 build-package:
-  # This only runs on the default branch and when the commit message contains [deploy *]
   stage: build
   image: 
     name: registry.gitlab.com/garuda-linux/tools/chaotic-manager/manager
@@ -131,6 +130,8 @@ build-package:
     - chmod 400 /app/sshkey
     - apk add --no-cache --upgrade bash
   script:
+    # This script determines whether a relevant change occurred and if so, builds the package
+    # this can be triggered by either a [deploy *] commit message or changes of PKGBUILD folders
     - bash -x .ci/schedule-package.sh
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_MESSAGE =~ /\[deploy.*\]/ && $BUMPVER != "1" && $UPDATE_DOCKER != "1"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $BUMPVER != "1" && $UPDATE_DOCKER != "1"
