@@ -49,11 +49,11 @@ check-pkgbuild:
     - pacman-key --lsign-key 3056513887B78AEB
     - pacman -U --noconfirm https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst
     - pacman -U --noconfirm https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst
-    - | 
-        echo -e "[multilib]\\nInclude = /etc/pacman.d/mirrorlist" >>/etc/pacman.conf &&
-        echo "" >>/etc/pacman.conf &&
-        echo -e "[chaotic-aur]\\nInclude = /etc/pacman.d/chaotic-mirrorlist" >>/etc/pacman.conf &&
-        echo "" >>/etc/pacman.conf
+    - |
+      echo -e "[multilib]\\nInclude = /etc/pacman.d/mirrorlist" >>/etc/pacman.conf &&
+      echo "" >>/etc/pacman.conf &&
+      echo -e "[chaotic-aur]\\nInclude = /etc/pacman.d/chaotic-mirrorlist" >>/etc/pacman.conf &&
+      echo "" >>/etc/pacman.conf
     - pacman -Syu --noconfirm aura
   script:
     - bash .ci/check-pkgbuild.sh
@@ -76,7 +76,7 @@ check-pr-commitizen:
     - cz check --message "$CI_COMMIT_MESSAGE" >/tmp/cz_check || true # why does it return 1 if its actually 0?
     - grep "successful" /tmp/cz_check # ugly hack to workaround the above issue
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $UPDATE_DOCKER != "1"
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
 
 fetch-gitsrc:
   # This basically updates the version in the PKGBUILD based on fetched git repos
@@ -95,7 +95,6 @@ fetch-gitsrc:
     GIT_STRATEGY: none
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $BUMPVER == "1"
-
 
 fetch-pkgbuilds:
   # This basically updates the version in the PKGBUILD and commits it
@@ -116,7 +115,7 @@ fetch-pkgbuilds:
 
 build-package:
   stage: build
-  image: 
+  image:
     name: registry.gitlab.com/garuda-linux/tools/chaotic-manager/manager
     entrypoint: [""] # override entrypoint as we don't have the needed key during first execution yet
   before_script:
@@ -132,4 +131,22 @@ build-package:
   rules:
     - changes:
         - "*/PKGBUILD"
-      if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $UPDATE_DOCKER != "1"
+      if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+push-pkgbuild:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - '[[ -z ${AUR_KEY+x} ]] && echo "No AUR SSH key available, backing off!" && exit 1'
+    - mkdir /root/.ssh
+    - echo "$AUR_KEY" >/root/.ssh/id_ed25519
+    - chmod 600 /root/.ssh/id_ed25519
+    - apk add --no-cache --upgrade bash git
+  script:
+    # This script determines whether a relevant change occurred and if so, pushes the package to AUR
+    - bash .ci/manage-aur.sh
+  rules:
+    - changes:
+        - "*/PKGBUILD"
+        - "*/*.install"
+      if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
