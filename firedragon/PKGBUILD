@@ -1,0 +1,352 @@
+# Maintainer: dr460nf1r3 <dr460nf1r3 at garudalinux dot org>
+# Co-Maintainer: FGD
+
+pkgname=firedragon
+_pkgname=FireDragon
+pkgver=11.7.1
+pkgrel=1
+pkgdesc="Floorp fork build using custom branding & settings"
+arch=(x86_64 x86_64_v3 aarch64)
+backup=('usr/lib/firedragon/firedragon.cfg'
+    'usr/lib/firedragon/distribution/policies.json')
+license=(MPL GPL LGPL)
+url=https://gitlab.com/dr460nf1r3/settings/
+depends=(gtk3 libxt mime-types dbus-glib nss ttf-font libpulse ffmpeg xdg-desktop-portal)
+makedepends=(unzip zip diffutils yasm mesa imake inetutils xorg-server-xvfb
+    autoconf2.13 rust clang llvm jack nodejs cbindgen nasm mold gawk
+    python-setuptools python-zstandard git binutils dump_syms lld libxss
+    'wasi-compiler-rt>15' 'wasi-libc>=1:0+314+a1c7c2c' 'wasi-libc++>15' 'wasi-libc++abi>15' pciutils) # pciutils: only to avoid some PGO warning
+optdepends=('profile-sync-daemon: Load the browser profile into RAM'
+    'whoogle: Searching the web using a locally running Whoogle instance'
+    'searx: Searching the web using a locally running searX instance'
+    'networkmanager: Location detection via available WiFi networks'
+    'libnotify: Notification integration'
+    'pulseaudio: Audio support'
+    'speech-dispatcher: Text-to-Speech'
+    'hunspell-en_US: Spell checking, American English'
+    'plasma5-applets-window-appmenu: Appmenu for Plasma only')
+options=(!emptydirs !makeflags !strip !lto !debug)
+install=$pkgname.install
+# Firedragon source based on Floorp
+source=(https://github.com/Floorp-Projects/Floorp/archive/refs/tags/v"$pkgver".tar.gz
+    "$pkgname.desktop"
+    "git+https://gitlab.com/dr460nf1r3/common.git"
+    "git+https://gitlab.com/dr460nf1r3/settings.git"
+    "floorp::git+https://github.com/Floorp-Projects/Floorp-core"
+    "floorp-Unified-l10n-central::git+https://github.com/Floorp-Projects/Unified-l10n-central")
+sha256sums=('f267ea51dbbe869f3674da1985611bc34a712a8c8c9d677feeb796fc9335d47d'
+    '53d3e743f3750522318a786befa196237892c93f20571443fdf82a480e7f0560'
+    'SKIP'
+    'SKIP'
+    'SKIP'
+    'SKIP')
+
+# Change this to false if you do not want to run a PGO build for aarch64 or x86_64
+_build_profiled_aarch64=true
+_build_profiled_x86_64=true
+
+# Fix some potential Python and a Rust error
+if [ "${CC}" != "gcc" ] || [ "${CXX}" != "g++" ]; then
+    export CC=gcc
+    export CXX=g++
+    export LD=ld
+    export AS=""
+    export NM=""
+    export AR=""
+    export RANLIB=""
+    export OBJCOPY=""
+    export LDFLAGS="${LDFLAGS/-static/}"
+fi
+
+prepare() {
+    mkdir -p mozbuild
+    # Floorp's shenanigan to make the build work
+    mv -f floorp ./Floorp-"$pkgver"
+    mv -f floorp-Unified-l10n-central/* ./Floorp-"$pkgver"/floorp/browser/locales/l10n-central
+    cd Floorp-"$pkgver"
+    mkdir floorp/build/moz.configure
+    cp -r ./build/moz.configure ./floorp/build
+
+    local _patches_dir
+    _patches_dir="${srcdir}/common/patches"
+
+    local _floorp_patches_dir
+    _floorp_patches_dir="${srcdir}/common/patches/floorp/"
+
+    cat >../mozconfig <<END
+ac_add_options --enable-application=browser
+mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
+
+# This supposedly speeds up compilation (We test through dogfooding anyway)
+ac_add_options --disable-debug
+ac_add_options --disable-tests
+
+# TODO: use source/assets/moczonfig in the future
+# NOTE: let us use it for one last build, otherwise, there might be some conflicts
+mk_add_options MOZ_CRASHREPORTER=0
+mk_add_options MOZ_DATA_REPORTING=0
+mk_add_options MOZ_SERVICES_HEALTHREPORT=0
+mk_add_options MOZ_TELEMETRY_REPORTING=0
+
+ac_add_options --disable-bootstrap
+ac_add_options --enable-default-toolkit=cairo-gtk3-wayland
+ac_add_options --enable-hardening
+ac_add_options --enable-linker=lld
+ac_add_options --enable-release
+ac_add_options --enable-rust-simd
+ac_add_options --prefix=/usr
+
+export AR=llvm-ar
+export CC='clang'
+export CXX='clang++'
+export NM=llvm-nm
+export RANLIB=llvm-ranlib
+
+# Branding
+ac_add_options --allow-addon-sideload
+ac_add_options --enable-update-channel=release
+ac_add_options --with-app-name=${pkgname}
+ac_add_options --with-branding=browser/branding/${pkgname}
+ac_add_options --with-distribution-id=org.garudalinux
+ac_add_options --with-unsigned-addon-scopes=app,system
+export MOZ_REQUIRE_SIGNING=1
+
+# System libraries
+ac_add_options --with-system-nspr
+ac_add_options --with-system-nss
+
+# Features
+ac_add_options --enable-jxl
+ac_add_options --enable-alsa
+ac_add_options --enable-jack
+ac_add_options --disable-crashreporter
+ac_add_options --disable-updater
+ac_add_options --disable-default-browser-agent
+
+# WASI
+ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
+END
+
+    if [[ $CARCH == 'aarch64' ]]; then
+        cat >>../mozconfig <<END
+# taken from manjaro build:
+ac_add_options --enable-optimize="-g0 -O2"
+END
+
+        export MOZ_DEBUG_FLAGS=" "
+        export CFLAGS+=" -g0"
+        export CXXFLAGS+=" -g0"
+        export RUSTFLAGS="-Cdebuginfo=0"
+
+        # we should have more than enough RAM on the CI spot instances.
+        # ...or maybe not?
+        export LDFLAGS+=" -Wl,--no-keep-memory"
+        ###(REQUIRED?)
+        # patch -Np1 -i "${_floorp_patches_dir}"/arm.patch # not required anymore?
+        # patch -Np1 -i ../${pkgver}-${pkgrel}_build-arm-libopus.patch
+
+    else
+
+        cat >>../mozconfig <<END
+# probably not needed, enabled by default?
+ac_add_options --enable-optimize
+
+# Arch upstream has it in their PKGBUILD, ALARM does not for aarch64:
+ac_add_options --disable-elf-hack
+
+# might help with failing x86_64 builds?
+export LDFLAGS+=" -Wl,--no-keep-memory"
+END
+    fi
+
+    # Remove some pre-installed addons that might be questionable
+    patch -Np1 -i "${_floorp_patches_dir}"/remove_addons.patch
+
+    # Stop some undesired requests (https://gitlab.com/librewolf-community/browser/common/-/issues/10)
+    patch -Np1 -i "${_floorp_patches_dir}"/sed-patches/stop-undesired-requests.patch
+
+    # Assorted patches
+    patch -Np1 -i "${_floorp_patches_dir}"/urlbarprovider-interventions.patch
+
+    # Allow uBlockOrigin to run in private mode by default, without user intervention.
+    patch -Np1 -i "${_floorp_patches_dir}"/allow-ubo-private-mode.patch
+
+    # Add custom uBO assets (on first launch only)
+    patch -Np1 -i "${_floorp_patches_dir}"/custom-ubo-assets-bootstrap-location.patch
+
+    # Allows hiding the password manager (from the lw pref pane) / via a pref
+    patch -Np1 -i "${_floorp_patches_dir}"/hide-passwordmgr.patch
+
+    # Pref pane - custom FireDragon svg
+    patch -Np1 -i "${_patches_dir}"/custom/add_firedragon_svg.patch
+
+    # Update privacy preferences
+    patch -Np1 -i "${_patches_dir}"/custom/privacy-preferences.patch
+
+    rm -f "${srcdir}"/common/source_files/mozconfig
+    cp -r "${srcdir}"/common/source_files/* ./
+}
+
+build() {
+    cd Floorp-"$pkgver"
+
+    export MOZ_NOSPAM=1
+    export MOZ_ENABLE_WAYLAND=1 # Full Wayland compatibility by default
+    export MOZBUILD_STATE_PATH="$srcdir/mozbuild"
+    # export MOZ_ENABLE_FULL_SYMBOLS=1
+    export MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE=pip
+    export PIP_NETWORK_INSTALL_RESTRICTED_VIRTUALENVS=mach # let us hope this is a working _new_ workaround for the pip env issues?
+
+    # LTO needs more open files
+    ulimit -n 4096
+
+    # Do 3-tier PGO
+    echo "Building instrumented browser..."
+
+    if [[ $CARCH == 'aarch64' ]]; then
+
+        cat >.mozconfig ../mozconfig - <<END
+ac_add_options --enable-profile-generate
+END
+
+    else
+
+        cat >.mozconfig ../mozconfig - <<END
+ac_add_options --enable-profile-generate
+END
+
+    fi
+
+    ./mach build
+
+    echo "Profiling instrumented browser..."
+
+    ./mach package
+
+    LLVM_PROFDATA=llvm-profdata \
+        JARLOG_FILE="$PWD/jarlog" \
+        xvfb-run -s "-screen 0 1920x1080x24 -nolisten local" \
+        ./mach python build/pgo/profileserver.py
+
+    stat -c "Profile data found (%s bytes)" merged.profdata
+    test -s merged.profdata
+
+    stat -c "Jar log found (%s bytes)" jarlog
+    test -s jarlog
+
+    echo "Removing instrumented browser..."
+    ./mach clobber
+
+    echo "Building optimized browser..."
+
+    if [[ $CARCH == 'aarch64' ]]; then
+
+        cat >.mozconfig ../mozconfig - <<END
+ac_add_options --enable-lto
+ac_add_options --enable-profile-use
+ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
+ac_add_options --with-pgo-jarlog=${PWD@Q}/jarlog
+END
+
+    else
+
+        cat >.mozconfig ../mozconfig - <<END
+ac_add_options --enable-lto
+ac_add_options --enable-profile-use
+ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
+ac_add_options --with-pgo-jarlog=${PWD@Q}/jarlog
+END
+
+    fi
+
+    # cat >>.mozconfig <<END
+    # ac_add_options --enable-linker=lld
+    # ac_add_options --disable-bootstrap
+    # END
+
+    ./mach build
+
+    echo "Building symbol archive..."
+    ./mach buildsymbols
+}
+
+package() {
+    cd Floorp-"$pkgver"
+    DESTDIR="$pkgdir" ./mach install
+
+    rm "$pkgdir"/usr/lib/${pkgname}/pingsender
+
+    install -Dvm644 "$srcdir/settings/$pkgname.psd" "$pkgdir/usr/share/psd/browsers/$pkgname"
+
+    local vendorjs
+    vendorjs="$pkgdir/usr/lib/$pkgname/browser/defaults/preferences/vendor.js"
+
+    install -Dvm644 /dev/stdin "$vendorjs" <<END
+// Use system-provided dictionaries
+pref("spellchecker.dictionary_path", "/usr/share/hunspell");
+
+// Don't disable extensions in the application directory
+// done in firedragon.cfg
+// pref("extensions.autoDisableScopes", 11);
+END
+
+    # cd ${srcdir}/settings
+    # git checkout ${_settings_commit}
+    cd ${srcdir}/Floorp-"$pkgver"
+    cp -r ${srcdir}/settings/* ${pkgdir}/usr/lib/${pkgname}/
+
+    local distini="$pkgdir/usr/lib/$pkgname/distribution/distribution.ini"
+    install -Dvm644 /dev/stdin "$distini" <<END
+
+[Global]
+id=garudalinux
+version=1.0
+about=$_pkgname for Garuda Linux
+
+[Preferences]
+app.distributor=garudalinux
+app.distributor.channel=$pkgname
+app.partner.garudalinux=garudalinux
+END
+
+    for i in 16 32 48 64 128; do
+        install -Dvm644 browser/branding/${pkgname}/default$i.png \
+            "$pkgdir/usr/share/icons/hicolor/${i}x${i}/apps/$pkgname.png"
+    done
+    install -Dvm644 browser/branding/${pkgname}/content/about-logo.png \
+        "$pkgdir/usr/share/icons/hicolor/192x192/apps/$pkgname.png"
+
+    # Arch upstream provides a separate svg for this. we don't have that, so let's re-use 16.png
+    install -Dvm644 browser/branding/${pkgname}/default16.png \
+        "$pkgdir/usr/share/icons/hicolor/symbolic/apps/$pkgname-symbolic.png"
+
+    install -Dvm644 ../$pkgname.desktop \
+        "$pkgdir/usr/share/applications/$pkgname.desktop"
+
+    # Install a wrapper to avoid confusion about binary path
+    install -Dvm755 /dev/stdin "$pkgdir/usr/bin/$pkgname" <<END
+#!/bin/sh
+exec /usr/lib/$pkgname/$pkgname "\$@"
+END
+
+    # Replace duplicate binary with wrapper
+    # https://bugzilla.mozilla.org/show_bug.cgi?id=658850
+    ln -srfv "$pkgdir/usr/bin/$pkgname" "$pkgdir/usr/lib/$pkgname/$pkgname-bin"
+
+    # Use system certificates
+    local nssckbi="$pkgdir/usr/lib/$pkgname/libnssckbi.so"
+    if [[ -e $nssckbi ]]; then
+        ln -srfv "$pkgdir/usr/lib/libnssckbi.so" "$nssckbi"
+    fi
+
+    # Make native messaging work
+    ln -s "/usr/lib/mozilla/native-messaging-hosts" "$pkgdir/usr/lib/firedragon/native-messaging-hosts"
+
+    # Delete unneeded things from settings repo
+    rm "$pkgdir/usr/lib/firedragon/LICENSE.txt"
+    rm "$pkgdir/usr/lib/firedragon/about.png"
+    rm "$pkgdir/usr/lib/firedragon/firedragon.psd"
+    rm "$pkgdir/usr/lib/firedragon/home.png"
+    rm "$pkgdir/usr/lib/firedragon/package.json"
+    rm "$pkgdir/usr/lib/firedragon/yarn.lock"
+}
