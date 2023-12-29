@@ -48,7 +48,7 @@ function read-functions() {
 	# We basically compare the set of available functions before and after sourcing
 	# the PKGBUILD here, if they differ, the PKGBUILD needs to be reviewed
 	local _OLDFUNCS _NEWFUNCS
-    echo "$_NEWPKG" > /tmp/newpkgbuild
+	echo "$_NEWPKG" >/tmp/newpkgbuild
 	_OLDFUNCS=$(grep -Pzo '[pkgver|package|build].*{((?:[^{}]*|(?R))*)}\n' "${_PKGNAME[$_COUNTER]}/PKGBUILD")
 	_NEWFUNCS=$(grep -Pzo '[pkgver|package|build].*{((?:[^{}]*|(?R))*)}\n' /tmp/newpkgbuild)
 
@@ -58,8 +58,6 @@ function read-functions() {
 		((_NEEDS_UPDATE++))
 	else
 		echo "No function changes detected..."
-		_NEEDS_REVIEW=0
-		_NEEDS_UPDATE=0
 	fi
 }
 
@@ -148,7 +146,7 @@ function update_pkgbuild() {
 		# Commit and push the changes back to trigger a new pipeline run
 		git commit -m "chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL}"
 
-		git push "$REPO_URL" HEAD:main # Env provided via GitLab CI
+		git push "$REPO_URL" HEAD:"$_TARGET_BRANCH" # Env provided via GitLab CI
 		echo ""
 	else
 		echo "No changes detected, skipping!"
@@ -221,6 +219,9 @@ for package in "${_PKGNAME[@]}"; do
 	# if it does, switch to it to compare against the latest version
 	exists-branch
 	[ "$_BRANCH_EXISTS" == 1 ] && git checkout "update-${_PKGNAME[$_COUNTER]}"
+
+	_NEEDS_REVIEW=0
+	_NEEDS_UPDATE=0
 
 	read-variables "old"
 	read-variables "new"

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-for dep in curl git; do
-    command -v "$dep" &>/dev/null || echo "$dep is not installed!"
-done
+command -v git &>/dev/null || echo "Git is not installed!"
 
 # Build a list of valid VCS packages
 mapfile -t _PACKAGES < <(find . -mindepth 1 -type d -prune | sed -e '/.\./d' -e 's/.\///g')
@@ -23,7 +21,7 @@ for package in "${_VCS_PKG[@]}"; do
         fi
     done
 
-    # Strip git+ as ls-remote doesn't accept this kind of URL, then 
+    # Strip git+ as ls-remote doesn't accept this kind of URL, then
     # retrieve latest commit based on current HEAD. This makes the operation
     # independant from any API and works with any git remote repository
     _SRC="${_SOURCE//git+/}"
