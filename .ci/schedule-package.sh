@@ -15,13 +15,13 @@ function parse-commit() {
     if [[ "$_FROM_COMMIT_MSG" == 1 ]]; then
         if [[ "$CI_COMMIT_MESSAGE" == *"[deploy all]"* ]]; then
             for package in "${_PACKAGES[@]}"; do
-                _PKG+=("chaotic-aur:$package")
+                _PKG+=("garuda:$package")
             done
             echo "Requested a full routine run."
         elif [[ "$CI_COMMIT_MESSAGE" == *"[deploy"*"]"* ]]; then
             for package in "${_PACKAGES[@]}"; do
                 if [[ "$CI_COMMIT_MESSAGE" == *"[deploy $package]"* ]]; then
-                    _PKG=("chaotic-aur:$package")
+                    _PKG=("garuda:$package")
                     echo "Requested package build for $package."
                     return 0
                 fi
@@ -30,20 +30,19 @@ function parse-commit() {
         else
             echo "No package to build found in commit message. Exiting." && exit 1
         fi
-    else
-        return 0
     fi
 }
 
 parse-gitdiff() {
     if [[ "$_FROM_COMMIT_MSG" == 0 ]]; then
         # Compare the last 2 commits
+        local _CURRENT_DIFF
         _CURRENT_DIFF=$(git --no-pager diff --name-only HEAD~1..HEAD)
 
         # Check whether relevant folders got changed
         for package in "${_PACKAGES[@]}"; do
             if [[ "$_CURRENT_DIFF" =~ "$package"/ ]]; then
-                _PKG+=("chaotic-aur:$package")
+                _PKG+=("garuda:$package")
                 echo "Detected changes in $package, scheduling build..."
             fi
         done
@@ -51,15 +50,20 @@ parse-gitdiff() {
         if [[ "${#_PKG[@]}" == 0 ]]; then
             echo "No relevant package changes to build found, exiting gracefully." && exit 0
         fi
-    else
-        return 0
     fi
 }
 
 schedule-package() {
+    if [[ "${#_PKG[@]}" == 0 ]]; then
+        echo "No relevant package changes to build found, exiting gracefully." && exit 0
+    fi
+
+    # To only schedule each package once, strip all duplicates
+    mapfile -t _FINAL_PKG < <(for pkg in "${_PKG[@]}"; do echo "$pkg"; done | sort -u)
+
     # Schedule either a full run or a single package using chaotic-manager
     # the entry_point script also establishes a connection to our Redis server
-    /entry_point.sh schedule --commit "${CI_COMMIT_SHA}:${CI_PIPELINE_ID}" --repo "$BUILD_REPO" "${_PKG[@]}"
+    /entry_point.sh schedule --commit "${CI_COMMIT_SHA}:${CI_PIPELINE_ID}" --repo "$BUILD_REPO" "${_FINAL_PKG[@]}"
 }
 
 prepare-env
