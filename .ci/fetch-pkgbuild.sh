@@ -147,9 +147,9 @@ function update_pkgbuild() {
 		git commit -m "chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL}"
 
 		git push "$REPO_URL" HEAD:"$_TARGET_BRANCH" # Env provided via GitLab CI
-		echo ""
+		printf "\n\n"
 	else
-		echo "No changes detected, skipping!"
+		printf "No changes detected, skipping!\n\n"
 	fi
 }
 
@@ -186,14 +186,14 @@ function create_mr() {
 
 	# No MR found, let's create a new one
 	if [ "$_MR_EXISTS" == 0 ]; then
-		curl -X POST "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests" \
+		curl -s -X POST "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests" \
 			--header "PRIVATE-TOKEN:${ACCESS_TOKEN}" \
 			--header "Content-Type: application/json" \
 			--data "${BODY}" &&
-			echo "Opened a new merge request: chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL}" ||
-			echo "Failed to open a new merge request!"
+			printf "Opened a new merge request: chore(%s): %s-%s -> %s-%s\n\n" "${_PKGNAME[$_COUNTER]}" "${_OLDVER}" "${_OLDPKGREL}" "${_NEWVER}" "${_NEWPKGREL}" ||
+			printf "Failed to open a new merge request!\n\n"
 	else
-		echo "No new merge request opened due to an already existing MR."
+		printf "No new merge request opened due to an already existing MR.\n\n"
 	fi
 }
 
@@ -229,19 +229,20 @@ for package in "${_PKGNAME[@]}"; do
 	classify-update
 
 	if [[ $_NEEDS_UPDATE == 0 ]]; then
+		[[ $(git branch --show-current) != "main" ]] && git switch main
 		printf "%s is up to date.\n\n" "${_PKGNAME[$_COUNTER]}"
 		((_COUNTER++))
 		continue
 	elif [[ $_NEEDS_REVIEW != 0 ]]; then
 		# If review is needed, always create a merge request
 		_TMPDIR=$(mktemp -d)
-		echo "Major changes detected, please review them manually!"
 		update_pkgbuild
 		create_mr
 	elif [[ "$_LATEST" == "git-src" ]]; then
 		# If no review is required and the package is a git package, do nothing
 		# we generally just want to update the PKGBUILD in case its something like deps,
 		# functions or makedep changing. Up-to-date pkgver is maintained by us.
+		[[ $(git branch --show-current) != "main" ]] && git switch main
 		printf "%s is managed by fetch-gitsrc, skipping.\n\n" "${_PKGNAME[$_COUNTER]}"
 		((_COUNTER++))
 		continue
@@ -250,7 +251,7 @@ for package in "${_PKGNAME[@]}"; do
 		_TMPDIR=$(mktemp -d)
 		update_pkgbuild
 	else
-		echo "${_PKGNAME[$_COUNTER]} is up to date"
+		printf "%s is up to date\n\n" "${_PKGNAME[$_COUNTER]}"
 	fi
 
 	[[ $(git branch --show-current) != "main" ]] && git switch main
