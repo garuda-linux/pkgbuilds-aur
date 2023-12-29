@@ -31,7 +31,7 @@ for package in "${_VCS_PKG[@]}"; do
 
     # Finally update CI_GIT_COMMIT
     if [[ "$_NEWEST_COMMIT" != "$_CURRENT_COMMIT" ]]; then
-        if ! grep "CI_GIT_COMMIT=" "$package/.CI_CONFIG"; then
+        if ! grep -q "CI_GIT_COMMIT=" "$package/.CI_CONFIG"; then
             printf "\nCI_GIT_COMMIT=%s" "$_NEWEST_COMMIT" >>"$package/.CI_CONFIG"
         else
             sed -i "s/CI_GIT_COMMIT=.*/CI_GIT_COMMIT=$_NEWEST_COMMIT/g" "$package/.CI_CONFIG"
