@@ -4,7 +4,7 @@
 pkgname=firedragon
 _pkgname=FireDragon
 pkgver=11.7.1
-pkgrel=6
+pkgrel=7
 pkgdesc="Floorp fork build using custom branding & settings"
 url='http://dr460nf1r3.org'
 arch=('x86_64')
@@ -175,6 +175,7 @@ build() {
     export MOZBUILD_STATE_PATH="${srcdir}/mozbuild"
     export MOZ_ENABLE_FULL_SYMBOLS=1
     export MOZ_NOSPAM=1
+    export MOZ_ENABLE_WAYLAND=1 # Forces full Wayland compatibility -- To be removed starting with Firefox version 120 or 121
     export MOZ_PROFILER_STARTUP=1 # Starts the profiler is started as early as possible during startup.
 
     # Malloc_usable_size is used in various parts of the codebase
