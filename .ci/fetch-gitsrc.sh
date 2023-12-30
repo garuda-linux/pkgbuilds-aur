@@ -17,8 +17,8 @@ done
 for package in "${_VCS_PKG[@]}"; do
     printf "\nChecking %s...\n" "$package"
 
-    # Get git source of the package
-    _SOURCE=$(grep -oP '\ssource\s=\s.*git\+\K.*$' "$package/.SRCINFO")
+    # Get first git source of the package
+    _SOURCE=$(grep -oP '\ssource\s=\s.*git\+\K.*$' "$package/.SRCINFO" | head -n1)
 
     # Abort mission if source contains a fixed commit
     for fragment in branch commit tag revision; do
