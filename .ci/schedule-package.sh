@@ -15,13 +15,13 @@ function parse-commit() {
     if [[ "$_FROM_COMMIT_MSG" == 1 ]]; then
         if [[ "$CI_COMMIT_MESSAGE" == *"[deploy all]"* ]]; then
             for package in "${_PACKAGES[@]}"; do
-                _PKG+=("chaotic-aur:$package")
+                _PKG+=("garuda-aur:$package")
             done
             echo "Requested a full routine run."
         elif [[ "$CI_COMMIT_MESSAGE" == *"[deploy"*"]"* ]]; then
             for package in "${_PACKAGES[@]}"; do
                 if [[ "$CI_COMMIT_MESSAGE" == *"[deploy $package]"* ]]; then
-                    _PKG=("chaotic-aur:$package")
+                    _PKG=("garuda-aur:$package")
                     echo "Requested package build for $package."
                     return 0
                 fi
@@ -42,7 +42,7 @@ parse-gitdiff() {
         # Check whether relevant folders got changed
         for package in "${_PACKAGES[@]}"; do
             if [[ "$_CURRENT_DIFF" =~ "$package"/ ]]; then
-                _PKG+=("chaotic-aur:$package")
+                _PKG+=("garuda-aur:$package")
                 echo "Detected changes in $package, scheduling build..."
             fi
         done
