@@ -30,7 +30,7 @@ We highly appreciate contributions of any sort! 😊 This repository allows two 
 
 To contribute fixes related to CI, scripts or other things, please follow these steps:
 
-- [Create a fork of this repository](https://gitlab.com/garuda-linux/pkgbuilds/-/forks/new).
+- [Create a fork of this repository](https://gitlab.com/garuda-linux/pkgbuilds-aur/-/forks/new).
 - Clone your fork locally ([short git tutorial](https://rogerdudler.github.io/git-guide/)).
 - Add the desired changes to PKGBUILDs or source code.
 - Ensure [shellcheck](https://www.shellcheck.net) and [shfmt](https://github.com/patrickvane/shfmt) report no issues with the changed files
@@ -41,7 +41,7 @@ To contribute fixes related to CI, scripts or other things, please follow these 
   - The [commitizen](https://github.com/commitizen-tools/commitizen) application helps with creating a fitting commit message.
     You can install it via [pip](https://pip.pypa.io/) as there is currently no package in Arch repos: `pip install --user -U Commitizen`.
     Then proceed by running `cz commit` in the cloned folder.
-- [Create a new merge request at our main repository](https://gitlab.com/garuda-linux/pkgbuilds/-/merge_requests/new).
+- [Create a new merge request at our main repository](https://gitlab.com/garuda-linux/pkgbuilds-aur/-/merge_requests/new).
 - Check if any of the pipeline runs fail and apply eventual suggestions.
 
 We will then review the changes and eventually merge them.
@@ -92,7 +92,7 @@ These generally execute scripts found in the `.ci` folder.
   - Checks PKGBUILD for superficial issues via `namcap` and `aura`
 - Check rebuild:
   - Checks whether packages known to be causing rebuilds have been updated
-  - Updates pkgrel for affected packages and pushes changes back to this repo
+  - Updates `pkgrel` for affected packages and pushes changes back to this repo
   - This triggers another pipeline run which schedules the corresponding builds
 - Fetch Git sources:
   - Updates PKGBUILDs versions, which are derived from git commits and pushes changes back to this repo
@@ -100,12 +100,12 @@ These generally execute scripts found in the `.ci` folder.
 - Lint:
   - Lints scripts, configs and PKGBUILDs via a set of linters
 - Manage AUR:
-  - Checks .CI_CONFIG in each PKGBUILDs folder for whether a package is meant to be managed on the AUR side
+  - Checks `.CI_CONFIG` in each PKGBUILDs folder for whether a package is meant to be managed on the AUR side
   - Clones the AUR repo and updates files with current versions of this repo
-  - Pushes changes back
+  - Pushes changes back to AUR
 - Schedule package:
-  - Checks for a list of commits between HEAD and "scheduled" tag
-  - Checks whether a "[deploy]" string exists in the commit message or PKGBUILD directories changed
+  - Creates a list of changes between the last 2 commits
+  - Checks whether a `[deploy $pkgname]` string exists in the commit message or PKGBUILD directories changed
   - In either case a list of packages to be scheduled for a build gets created
   - Schedules all changed packages for a build via Chaotic Manager
 
@@ -119,7 +119,8 @@ This tool is distributed as Docker containers and consists of a pair of manager 
   - Picks packages to build from the Redis instance managed by the manager instance
 
 The manager is used by GitLab CI in the `schedule-package` job, scheduling packages by adding it to the build queue.
-The builder can be used by any machine capable of running the container. It will pick available jobs from our central Redis instance.
+The builder can be used by any machine capable of running the container.
+It will pick available jobs from our central Redis instance.
 
 ## Development setup
 
