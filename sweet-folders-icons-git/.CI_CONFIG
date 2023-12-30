@@ -1,1 +1,2 @@
 CI_PKGBUILD_SOURCE=https://aur.archlinux.org/sweet-folders-icons-git.git
+CI_GIT_COMMIT=b2192ff1412472f036fdf9778c6b9dbcb6c044ec
