@@ -1,0 +1,2 @@
+CI_PKGBUILD_SOURCE=https://aur.archlinux.org/plasma5-themes-sweet-kde-git.git
+CI_GIT_COMMIT=fd0710a7045683434bf3cdf52a8c44400b28c365
