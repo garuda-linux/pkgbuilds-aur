@@ -1,0 +1,15 @@
+pkgbase = firedragon-extension-plasma-integration
+	pkgdesc = Plasma browser integration addon for FireDragon
+	pkgver = 1.8.1
+	pkgrel = 3
+	url = https://addons.mozilla.org/en-US/firefox/addon/plasma-integration/
+	install = firedragon-extension-plasma-integration.install
+	arch = any
+	groups = firedragon-addons
+	license = GPLV3
+	depends = firedragon
+	depends = plasma-browser-integration
+	source = extension.xpi::https://addons.mozilla.org/firefox/downloads/file/3859385/plasma_integration-1.8.1-fx.xpi
+	md5sums = 70d453da327555c502642411910e317c
+
+pkgname = firedragon-extension-plasma-integration
