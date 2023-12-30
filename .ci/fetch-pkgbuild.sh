@@ -202,10 +202,19 @@ mapfile -t _PACKAGES < <(find . -mindepth 1 -type d -prune | sed -e '/.\./d' -e 
 declare -A _SOURCES
 
 for package in "${_PACKAGES[@]}"; do
-	_SOURCES["$package"]=$(grep -oP '^CI_PKGBUILD_SOURCE=\K.*$' "$package/.CI_CONFIG" || echo "none")
+	if (grep -qP '^CI_PKGBUILD_SOURCE=\K.*$' "$package/.CI_CONFIG" &>/dev/null); then
+		_SOURCES["$package"]=$(grep -oP '^CI_PKGBUILD_SOURCE=\K.*$' "$package/.CI_CONFIG")
+	else
+		_SOURCES["$package"]=none
+	fi
 done
 
 for package in "${!_SOURCES[@]}"; do
+	# If no source is provided, we simply skip execution
+	if [[ "${_SOURCES[$package]}" == "none" ]]; then
+		continue
+	fi
+	
 	echo "Checking $package..."
 	_NEWPKG=$(curl -s "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=$package")
 	_NEWSRCINFO=$(curl -s "https://aur.archlinux.org/cgit/aur.git/plain/.SRCINFO?h=$package")
