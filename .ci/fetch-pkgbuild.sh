@@ -6,23 +6,23 @@ done
 
 function read-variables() {
 	if [[ "$1" == "old" ]]; then
-		_OLDDESC=$(grep -oP '\spkgdesc\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		_OLDINSTALL=$(grep -oP '\sinstall\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		_OLDLICENSE=$(grep -oP '\slicense\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		_OLDPKGREL=$(grep -oP '\spkgrel\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		_OLDURL=$(grep -oP '\surl\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		_OLDVER=$(grep -oP '\spkgver\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDARCH < <(grep -oP '\sarch\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDBACKUP < <(grep -oP '\sbackup\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDCONFLICTS < <(grep -oP '\sconflicts\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDDEPENDS < <(grep -oP '\sdepends\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDMAKEDEPENDS < <(grep -oP '\smakedepends\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDMD5SUMS < <(grep -oP '\smd5sums\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDOPTDEPENDS < <(grep -oP '\soptdepends\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDSHA1SUMS < <(grep -oP '\ssha1sums\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDSHA256SUMS < <(grep -oP '\ssha256sums\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDSHA512SUMS < <(grep -oP '\ssha512sums\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
-		mapfile -t _OLDSOURCE < <(grep -oP '\ssource\s=\s\K.*' "${_PKGNAME[$_COUNTER]}/.SRCINFO")
+		_OLDDESC=$(grep -oP '\spkgdesc\s=\s\K.*' "$package/.SRCINFO")
+		_OLDINSTALL=$(grep -oP '\sinstall\s=\s\K.*' "$package/.SRCINFO")
+		_OLDLICENSE=$(grep -oP '\slicense\s=\s\K.*' "$package/.SRCINFO")
+		_OLDPKGREL=$(grep -oP '\spkgrel\s=\s\K.*' "$package/.SRCINFO")
+		_OLDURL=$(grep -oP '\surl\s=\s\K.*' "$package/.SRCINFO")
+		_OLDVER=$(grep -oP '\spkgver\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDARCH < <(grep -oP '\sarch\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDBACKUP < <(grep -oP '\sbackup\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDCONFLICTS < <(grep -oP '\sconflicts\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDDEPENDS < <(grep -oP '\sdepends\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDMAKEDEPENDS < <(grep -oP '\smakedepends\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDMD5SUMS < <(grep -oP '\smd5sums\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDOPTDEPENDS < <(grep -oP '\soptdepends\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDSHA1SUMS < <(grep -oP '\ssha1sums\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDSHA256SUMS < <(grep -oP '\ssha256sums\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDSHA512SUMS < <(grep -oP '\ssha512sums\s=\s\K.*' "$package/.SRCINFO")
+		mapfile -t _OLDSOURCE < <(grep -oP '\ssource\s=\s\K.*' "$package/.SRCINFO")
 	elif [[ "$1" == "new" ]]; then
 		_NEWDESC=$(echo "$_NEWSRCINFO" | grep -oP '\spkgdesc\s=\s\K.*')
 		_NEWINSTALL=$(echo "$_NEWSRCINFO" | grep -oP '\sinstall\s=\s\K.*')
@@ -49,7 +49,7 @@ function read-functions() {
 	# the PKGBUILD here, if they differ, the PKGBUILD needs to be reviewed
 	local _OLDFUNCS _NEWFUNCS
 	echo "$_NEWPKG" >/tmp/newpkgbuild
-	_OLDFUNCS=$(grep -Pzo '[pkgver|package|build].*{((?:[^{}]*|(?R))*)}\n' "${_PKGNAME[$_COUNTER]}/PKGBUILD")
+	_OLDFUNCS=$(grep -Pzo '[pkgver|package|build].*{((?:[^{}]*|(?R))*)}\n' "$package/PKGBUILD")
 	_NEWFUNCS=$(grep -Pzo '[pkgver|package|build].*{((?:[^{}]*|(?R))*)}\n' /tmp/newpkgbuild)
 
 	if [[ "${_OLDFUNCS[*]}" != "${_NEWFUNCS[*]}" ]]; then
@@ -62,7 +62,7 @@ function read-functions() {
 }
 
 function exists-branch() {
-	if git ls-remote --exit-code --heads origin "update-${_PKGNAME[$_COUNTER]}" &>/dev/null; then
+	if git ls-remote --exit-code --heads origin "update-$package" &>/dev/null; then
 		_BRANCH_EXISTS=1
 	else
 		_BRANCH_EXISTS=0
@@ -128,23 +128,23 @@ function classify-update() {
 }
 
 function update_pkgbuild() {
-	git clone "${_SOURCES[$_COUNTER]}" "$_TMPDIR/source"
+	git clone "${_SOURCES[$package]}" "$_TMPDIR/source"
 
 	# Switch to a new branch and put new files in place, in case non-trivial changes
 	if [[ $_NEEDS_REVIEW -gt 0 ]]; then
-		_TARGET_BRANCH="update-${_PKGNAME[$_COUNTER]}"
+		_TARGET_BRANCH="update-$package"
 	else
 		_TARGET_BRANCH=main
 	fi
 
-	cp -v "$_TMPDIR"/source/{*,.SRCINFO} "${_PKGNAME[$_COUNTER]}"
+	cp -v "$_TMPDIR"/source/{*,.SRCINFO} "$package"
 
 	# Only push if there are changes
 	if ! git diff --exit-code --quiet; then
-		git add "${_PKGNAME[$_COUNTER]}"
+		git add "$package"
 
 		# Commit and push the changes back to trigger a new pipeline run
-		git commit -m "chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL}"
+		git commit -m "chore($package): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL}"
 
 		git push "$REPO_URL" HEAD:"$_TARGET_BRANCH" # Env provided via GitLab CI
 		printf "\n\n"
@@ -179,7 +179,7 @@ function create_mr() {
 	\"allow_collaboration\": true,
 	\"subscribed\" : false,
 	\"approvals_before_merge\": \"1\",
-	\"title\": \"chore(${_PKGNAME[$_COUNTER]}): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL} [deploy ${_PKGNAME[$_COUNTER]}]\",
+	\"title\": \"chore($package): ${_OLDVER}-${_OLDPKGREL} -> ${_NEWVER}-${_NEWPKGREL} [deploy $package]\",
 	\"description\": \"The recent update of this package requires human reviewal!\",
 	\"labels\": \"ci,human-review,update\"
 	}"
@@ -190,26 +190,30 @@ function create_mr() {
 			--header "PRIVATE-TOKEN:${ACCESS_TOKEN}" \
 			--header "Content-Type: application/json" \
 			--data "${BODY}" &&
-			printf "Opened a new merge request: chore(%s): %s-%s -> %s-%s\n\n" "${_PKGNAME[$_COUNTER]}" "${_OLDVER}" "${_OLDPKGREL}" "${_NEWVER}" "${_NEWPKGREL}" ||
+			printf "Opened a new merge request: chore(%s): %s-%s -> %s-%s\n\n" "$package" "${_OLDVER}" "${_OLDPKGREL}" "${_NEWVER}" "${_NEWPKGREL}" ||
 			printf "Failed to open a new merge request!\n\n"
 	else
 		printf "No new merge request opened due to an already existing MR.\n\n"
 	fi
 }
 
-readarray -t _SOURCES < <(awk -F ' ' '{ print $1 }' ./SOURCES)
-readarray -t _PKGNAME < <(awk -F ' ' '{ print $2 }' ./SOURCES)
+# Build a list of packages and sources
+mapfile -t _PACKAGES < <(find . -mindepth 1 -type d -prune | sed -e '/.\./d' -e 's/.\///g')
+declare -A _SOURCES
 
-_COUNTER=0
-for package in "${_PKGNAME[@]}"; do
-	echo "Checking ${_PKGNAME[$_COUNTER]}..."
-	_NEWPKG=$(curl -s "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${_PKGNAME[$_COUNTER]}")
-	_NEWSRCINFO=$(curl -s "https://aur.archlinux.org/cgit/aur.git/plain/.SRCINFO?h=${_PKGNAME[$_COUNTER]}")
+for package in "${_PACKAGES[@]}"; do
+	_SOURCES["$package"]=$(grep -oP '^CI_PKGBUILD_SOURCE=\K.*$' "$package/.CI_CONFIG" || echo "none")
+done
+
+for package in "${!_SOURCES[@]}"; do
+	echo "Checking $package..."
+	_NEWPKG=$(curl -s "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=$package")
+	_NEWSRCINFO=$(curl -s "https://aur.archlinux.org/cgit/aur.git/plain/.SRCINFO?h=$package")
 
 	# Get the latest tag from via AUR RPC endpoint, using a placeholder for git packages
 	if [[ ! "$package" == *"-git"* ]]; then
-		_LATEST_VERSION=$(curl -s "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=${_PKGNAME[$_COUNTER]}" | jq -r '.results.[0].Version')
-	elif [[ -f "${_PKGNAME[$_COUNTER]}/.CI_CONFIG" ]] && grep -q "CI_IS_GIT_SOURCE=1" "${_PKGNAME[$_COUNTER]}/.CI_CONFIG"; then
+		_LATEST_VERSION=$(curl -s "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=$package" | jq -r '.results.[0].Version')
+	elif [[ -f "$package/.CI_CONFIG" ]] && grep -q "CI_IS_GIT_SOURCE=1" "$package/.CI_CONFIG"; then
 		_LATEST_VERSION="git-src"
 	else
 		_LATEST_VERSION="git-src"
@@ -218,7 +222,7 @@ for package in "${_PKGNAME[@]}"; do
 	# Check if a branch dedicated to updating the package already exists
 	# if it does, switch to it to compare against the latest version
 	exists-branch
-	[ "$_BRANCH_EXISTS" == 1 ] && git checkout "update-${_PKGNAME[$_COUNTER]}"
+	[ "$_BRANCH_EXISTS" == 1 ] && git checkout "update-$package"
 
 	_NEEDS_REVIEW=0
 	_NEEDS_UPDATE=0
@@ -230,8 +234,7 @@ for package in "${_PKGNAME[@]}"; do
 
 	if [[ $_NEEDS_UPDATE == 0 ]]; then
 		[[ $(git branch --show-current) != "main" ]] && git switch main
-		printf "%s is up to date.\n\n" "${_PKGNAME[$_COUNTER]}"
-		((_COUNTER++))
+		printf "%s is up to date.\n\n" "$package"
 		continue
 	elif [[ $_NEEDS_REVIEW != 0 ]]; then
 		# If review is needed, always create a merge request
@@ -243,20 +246,17 @@ for package in "${_PKGNAME[@]}"; do
 		# we generally just want to update the PKGBUILD in case its something like deps,
 		# functions or makedep changing. Up-to-date pkgver is maintained by us.
 		[[ $(git branch --show-current) != "main" ]] && git switch main
-		printf "%s is managed by fetch-gitsrc, skipping.\n\n" "${_PKGNAME[$_COUNTER]}"
-		((_COUNTER++))
+		printf "%s is managed by fetch-gitsrc, skipping.\n\n" "$package"
 		continue
 	elif [[ "$_OLDVER"-"$_OLDPKGREL" != "$_LATEST" ]]; then
 		# Otherwise just push the version update to main
 		_TMPDIR=$(mktemp -d)
 		update_pkgbuild
 	else
-		printf "%s is up to date\n\n" "${_PKGNAME[$_COUNTER]}"
+		printf "%s is up to date\n\n" "$package"
 	fi
 
 	[[ $(git branch --show-current) != "main" ]] && git switch main
-
-	((_COUNTER++))
 
 	# Try to avoid rate limiting
 	sleep 1
