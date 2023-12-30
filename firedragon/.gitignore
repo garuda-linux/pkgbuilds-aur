@@ -1,8 +1,0 @@
-*.tar.xz*
-cachyos-source
-common/
-librewolf-settings
-librewolf-source
-pkg/
-settings/
-src/
