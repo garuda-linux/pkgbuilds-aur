@@ -1,2 +1,2 @@
 CI_PKGBUILD_SOURCE=https://aur.archlinux.org/hyprland-git.git
-CI_GIT_COMMIT=7c1ac58a4bfc67addf10a2bd2497e71da923eba3
+CI_GIT_COMMIT=03ebbe18ed8517ee22591eac82cd54322f42cb7d
