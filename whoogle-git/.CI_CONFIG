@@ -1,3 +1,0 @@
-CI_GIT_COMMIT=7313edff4632a4b0c037e0e11dc259c9303a4c1c
-CI_MANAGE_AUR=1
-CI_PKGBUILD_SOURCE=https://aur.archlinux.org/whoogle-git.git
