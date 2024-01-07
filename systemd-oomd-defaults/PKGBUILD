@@ -14,8 +14,8 @@ source=(git+https://src.fedoraproject.org/rpms/systemd.git#commit=${_commit})
 md5sums=('SKIP')
 
 package() {
-  cd systemd
-  install -Dm0644 -t "$pkgdir"/usr/lib/systemd/oomd.conf.d/ 10-oomd-defaults.conf
-  install -Dm0644 -t "$pkgdir"/usr/lib/systemd/system/system.slice.d/ 10-oomd-per-slice-defaults.conf
-  install -Dm0644 -t "$pkgdir"/usr/lib/systemd/user/slice.d/ 10-oomd-per-slice-defaults.conf
+	cd systemd
+	install -Dm0644 -t "$pkgdir"/usr/lib/systemd/oomd.conf.d/ 10-oomd-defaults.conf
+	install -Dm0644 -t "$pkgdir"/usr/lib/systemd/system/system.slice.d/ 10-oomd-per-slice-defaults.conf
+	install -Dm0644 -t "$pkgdir"/usr/lib/systemd/user/slice.d/ 10-oomd-per-slice-defaults.conf
 }

@@ -15,5 +15,5 @@ md5sums=('70d453da327555c502642411910e317c')
 install=$pkgname.install
 
 package() {
-  install -Dm644 extension.xpi "${pkgdir}/usr/lib/firedragon/browser/extensions/plasma-browser-integration@kde.org.xpi"
+	install -Dm644 extension.xpi "${pkgdir}/usr/lib/firedragon/browser/extensions/plasma-browser-integration@kde.org.xpi"
 }

@@ -12,8 +12,8 @@ source=("https://github.com/psifidotos/applet-window-title/archive/$pkgver.tar.g
 sha512sums=('ef00dbbed30d6fd3ee872ddf211e12567943ecfa9cf1cbeb1b8e494b869fd8592d666d57cd09ef4fcd16c468c4ce48c42bdaccc88b3ede33c7e442d3e3f623b9')
 
 package() {
-  _pkgdir="$pkgdir/usr/share/plasma/plasmoids/org.kde.windowtitle"
-  mkdir -p "$_pkgdir"
-  cp -r applet-window-title-$pkgver/* "$_pkgdir"
-  rm "$_pkgdir/README.md"
+	_pkgdir="$pkgdir/usr/share/plasma/plasmoids/org.kde.windowtitle"
+	mkdir -p "$_pkgdir"
+	cp -r applet-window-title-$pkgver/* "$_pkgdir"
+	rm "$_pkgdir/README.md"
 }
