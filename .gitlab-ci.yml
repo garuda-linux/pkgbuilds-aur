@@ -9,7 +9,7 @@ variables:
   REDIS_SSH_PORT: 400
   REDIS_SSH_USER: package-deployer
   REPO_NAME: garuda
-  CI_HUMAN_REVIEW: "false"
+  CI_HUMAN_REVIEW: "true"
   REPO_URL: https://oauth2:$ACCESS_TOKEN@gitlab.com/garuda-linux/pkgbuilds-aur
 
 default:
