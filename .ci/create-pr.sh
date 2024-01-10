@@ -3,18 +3,17 @@ set -euo pipefail
 
 # $1: pkgbase
 
-if [ -z "${ACCESS_TOKEN:-}" ];
-then
-    echo "ERROR: ACCESS_TOKEN is not set. Please set it to a valid access token to use human review or disable CI_HUMAN_REVIEW."
-    exit 0
+if [ -z "${ACCESS_TOKEN:-}" ]; then
+	echo "ERROR: ACCESS_TOKEN is not set. Please set it to a valid access token to use human review or disable CI_HUMAN_REVIEW."
+	exit 0
 fi
 
 # $1: pkgbase
 # $2: branch
 # $3: target branch
 function create_gitlab_pr() {
-    local pkgbase="$1"
-    local branch="$2"
+	local pkgbase="$1"
+	local branch="$2"
 	local target_branch="$3"
 
 	# Taken from https://about.gitlab.com/2017/09/05/how-to-automatically-create-a-new-mr-on-gitlab-with-gitlab-ci/
@@ -26,7 +25,7 @@ function create_gitlab_pr() {
 		return
 	fi
 
-	_COUNTBRANCHES=$(grep -o "\"source_branch\":\"${branch}\"" <<< "${_LISTMR}" | wc -l || true)
+	_COUNTBRANCHES=$(grep -o "\"source_branch\":\"${branch}\"" <<<"${_LISTMR}" | wc -l || true)
 
 	if [ "${_COUNTBRANCHES}" == "0" ]; then
 		_MR_EXISTS=0
@@ -46,7 +45,7 @@ function create_gitlab_pr() {
 	\"subscribed\" : false,
 	\"approvals_before_merge\": \"1\",
 	\"title\": \"chore($pkgbase): PKGBUILD modified [deploy $pkgbase]\",
-	\"description\": \"The recent update of this package requires human review!\",
+	\"description\": \"A recent update of this package requires human review! Please check whether any potentially dangerous changes were made.\",
 	\"labels\": \"ci,human-review,update\"
 	}"
 
@@ -81,7 +80,7 @@ function create_github_pr() {
 		return
 	fi
 
-	_COUNTBRANCHES=$(jq length <<< "${_LISTMR}" || true)
+	_COUNTBRANCHES=$(jq length <<<"${_LISTMR}" || true)
 
 	if [ "${_COUNTBRANCHES}" == "0" ]; then
 		_MR_EXISTS=0
@@ -110,21 +109,21 @@ function create_github_pr() {
 	else
 		echo "$pkgbase: No new pull request opened due to an already existing MR."
 	fi
-}	
+}
 
 # $1: branch
 # $2: target branch
 # $3: pkgbase
 function manage_branch() {
-    local branch="$1"
+	local branch="$1"
 	local target_branch="$2"
 	local pkgbase="$3"
 
 	git stash
-    if git show-ref --quiet "origin/$branch"; then
+	if git show-ref --quiet "origin/$branch"; then
 		git switch "$branch"
 		git checkout stash -- "$pkgbase"
-        # Branch already exists, let's see if it's up to date
+		# Branch already exists, let's see if it's up to date
 		# Also check if previous parent commit is no longer ancestor of target_branch
 		if ! git diff --staged --exit-code --quiet || ! git merge-base --is-ancestor HEAD^ "origin/$target_branch"; then
 			# Not up to date
@@ -153,7 +152,7 @@ else
 fi
 
 ORIGINAL_REF="$(git rev-parse HEAD)"
-CHANGE_BRANCH="$PKGBASE"
+CHANGE_BRANCH="update-$PKGBASE"
 
 manage_branch "$CHANGE_BRANCH" "$TARGET_BRANCH" "$PKGBASE"
 
@@ -162,7 +161,7 @@ if [ -v GITLAB_CI ]; then
 elif [ -v GITHUB_ACTIONS ]; then
 	create_github_pr "$PKGBASE" "$CHANGE_BRANCH" "$TARGET_BRANCH"
 else
-    echo "WARNING: Pull request creation is only supported on GitLab CI/GitHub Actions. Please disable CI_HUMAN_REVIEW." >&2
+	echo "WARNING: Pull request creation is only supported on GitLab CI/GitHub Actions. Please disable CI_HUMAN_REVIEW." >&2
 	exit 0
 fi
 

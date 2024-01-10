@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -x
 
 # This script is used to determine which packages to build based on the recent commits and run necessary checks
 declare -A PACKAGES=()
@@ -39,23 +40,23 @@ function parse_commit_messages() {
         local regex="\[deploy ([a-z0-9_ -]+)\]"
         if [[ "$message" =~ $regex ]]; then
             local potential_packages
-            mapfile -t potential_packages <<< "${BASH_REMATCH[1]}"
+            mapfile -t potential_packages <<<"${BASH_REMATCH[1]}"
             for package in "${potential_packages[@]}"; do
                 case "$package" in
-                    all)
-                        PACKAGES["all"]=1
-                        echo "Rebuild of all packages requested via commit message (${commit:0:7})."
-                        return;
-                        ;;
-                    *)
-                        if [ -d "$package" ]; then
-                            PACKAGES["$package"]=1
-                            echo "Rebuild of $package requested via commit message (${commit:0:7})."
-                        else
-                            echo "FATAL: Package $package requested but does not exist! Remove the package from the commit message (${commit:0:7}) and force push." >&2
-                            exit 1
-                        fi
-                        ;;
+                all)
+                    PACKAGES["all"]=1
+                    echo "Rebuild of all packages requested via commit message (${commit:0:7})."
+                    return
+                    ;;
+                *)
+                    if [ -d "$package" ]; then
+                        PACKAGES["$package"]=1
+                        echo "Rebuild of $package requested via commit message (${commit:0:7})."
+                    else
+                        echo "FATAL: Package $package requested but does not exist! Remove the package from the commit message (${commit:0:7}) and force push." >&2
+                        exit 1
+                    fi
+                    ;;
                 esac
             done
         fi

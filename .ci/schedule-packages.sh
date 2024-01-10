@@ -5,7 +5,7 @@ set -euo pipefail
 # This script parses the parameters passed to this script and outputs a list of package names to a file
 
 declare -a PACKAGES
-mapfile -t PACKAGES <<< "$@"
+mapfile -t PACKAGES <<<"$@"
 
 source .ci/util.shlib
 
@@ -35,4 +35,4 @@ elif [ -v GITHUB_ACTIONS ]; then
     echo "Warning: Pipeline updates are not supported on GitHub Actions yet."
 fi
 
-echo "schedule ${EXTRA_PARAMS[*]} --repo=$REPO_NAME ${PACKAGES[@]}" > .ci/schedule-params.txt
+echo "schedule ${EXTRA_PARAMS[*]} --repo=$REPO_NAME ${PACKAGES[@]}" >.ci/schedule-params.txt
